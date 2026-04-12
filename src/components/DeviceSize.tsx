@@ -330,12 +330,16 @@ const DeviceSize = () => {
 
                 /* STEP 2: move to top (stronger + more natural) */
 
-                tl.fromTo(wrap, {Y:120}, {
-                  y: 0,
-                  scale: 0.92,
-                  duration: 1.2,
-                  ease: 'power4.out',
-                })
+                tl.fromTo(
+                  wrap,
+                  { y: 120, scale: 1 },
+                  {
+                    y: 0,
+                    scale: 0.92,
+                    duration: 1.2,
+                    ease: 'power4.out',
+                  }
+                )
 
                 /* subtle cinematic settle */
 
@@ -364,12 +368,17 @@ const DeviceSize = () => {
               tl.add(() => {
                 hasPlayedInViewRef.current = true
 
-                // LOCK final UI state
                 wordsRef.current?.setProgress(1)
                 blurRevealRef.current?.setProgress(1)
 
                 gsap.set(video, { opacity: 0 })
                 gsap.set(image, { autoAlpha: 1 })
+
+                // 🔥 lock position (important)
+                gsap.set(wrap, {
+                  y: -window.innerHeight * 0.18,
+                  scale: 0.96,
+                })
               })
               },
             })
@@ -484,6 +493,14 @@ const DeviceSize = () => {
           if (entry.isIntersecting) {
             if (!hasPlayedInViewRef.current) {
               playSequence()
+            } else {
+              // 🔥 FIX: re-apply final state when coming back
+
+              wordsRef.current?.setProgress(1)
+              blurRevealRef.current?.setProgress(1)
+
+              gsap.set(video, { opacity: 0 })
+              gsap.set(image, { autoAlpha: 1 })
             }
           }
 

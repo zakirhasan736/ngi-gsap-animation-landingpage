@@ -46,7 +46,6 @@ const Hero = () => {
 
   useGSAP(
     () => {
-      const isDesktop = window.innerWidth >= 991
       const video = videoRef.current
       const image = imageRef.current
       const mediaWrap = mediaWrapRef.current
