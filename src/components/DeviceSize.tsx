@@ -374,11 +374,11 @@ const DeviceSize = () => {
                 gsap.set(video, { opacity: 0 })
                 gsap.set(image, { autoAlpha: 1 })
 
-                // 🔥 lock position (important)
-                gsap.set(wrap, {
-                  y: -window.innerHeight * 0.18,
-                  scale: 0.96,
-                })
+                // // 🔥 lock position (important)
+                // gsap.set(wrap, {
+                //   y: -window.innerHeight * 0.18,
+                //   scale: 0.96,
+                // })
               })
               },
             })
@@ -460,24 +460,6 @@ const DeviceSize = () => {
         })
       }
 
-      // const resetSequence = () => {
-      //   hasPlayedInViewRef.current = false
-      //   moveTween?.kill()
-      //   revealTween?.kill()
-      //   holdTween?.kill()
-      //   crossfadeTimeline?.kill()
-      //   crossfadeTimeline = null
-      //   hasStartedPostVideoAnimation = false
-      //   moveState.progress = 0
-      //   revealState.progress = 0
-      //   progressRef.current = 0
-      //   applyProgress(0)
-      //   video.pause()
-      //   video.currentTime = 0
-      //   gsap.set(video, { opacity: 1, autoAlpha: 1 })
-      //   gsap.set(image, { autoAlpha: 0 })
-      // }
-
       lastScrollYRef.current = window.scrollY
       const onScroll = () => {
         const currentY = window.scrollY
@@ -494,8 +476,7 @@ const DeviceSize = () => {
             if (!hasPlayedInViewRef.current) {
               playSequence()
             } else {
-              // 🔥 FIX: re-apply final state when coming back
-
+              
               wordsRef.current?.setProgress(1)
               blurRevealRef.current?.setProgress(1)
 

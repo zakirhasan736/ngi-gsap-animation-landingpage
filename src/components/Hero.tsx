@@ -195,26 +195,26 @@ const Hero = () => {
           scrollTl
 
             .to(
-              image,
+              video,
               {
                 autoAlpha: 1,
-                scale: 1.2,
-                y: -20,
+                scale: 1.1,
+                y: 30,
                 duration: 1.2,
                 ease: 'power3.out',
               },
               0
             )
 
-            .to(
-              mediaWrap,
-              {
-                y: -window.innerHeight * 0.35,
-                duration: 1,
-                ease: 'none',
-              },
-              0
-            )
+            // .to(
+            //   mediaWrap,
+            //   {
+            //     y: -window.innerHeight * 0.35,
+            //     duration: 1,
+            //     ease: 'none',
+            //   },
+            //   0
+            // )
         })
       }
 
@@ -245,22 +245,22 @@ const Hero = () => {
           .to(
             video,
             {
-              opacity: 0,
+              opacity: 1,
               duration: 0.7,
             },
             0
           )
 
           // image fades in
-          .to(
-            image,
-            {
-              autoAlpha: 1,
-              scale: 1,
-              duration: 1,
-            },
-            0
-          )
+          // .to(
+          //   image,
+          //   {
+          //     autoAlpha: 1,
+          //     scale: 1,
+          //     duration: 1,
+          //   },
+          //   0
+          // )
 
           // move media upward
           .to(
@@ -328,7 +328,7 @@ const Hero = () => {
       <div className="relative min-h-svh overflow-hidden">
         <div
           ref={mediaWrapRef}
-          className="desktop:h-[680px] desktop:w-[1208px] pointer-events-none absolute top-1/2 left-1/2 z-10 mb-10 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 transform sm:h-[350px] sm:w-[450px] md:h-[450px] md:w-[550px] xl:h-[400px] xl:w-[550px]"
+          className="desktop:h-[680px] desktop:w-[1208px] desktop:-mb-20 pointer-events-none absolute top-1/2 left-1/2 z-10  h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 transform sm:h-[350px] sm:w-[450px] md:h-[450px] md:w-[550px] xl:h-[400px] xl:w-[550px]"
           aria-hidden
         >
           <video
