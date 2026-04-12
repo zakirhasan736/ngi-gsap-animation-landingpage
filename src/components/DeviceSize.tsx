@@ -18,7 +18,7 @@ const VIDEO_IMAGE_CROSSFADE_DURATION = 0.8
 const VIDEO_IMAGE_CROSSFADE_EASE = 'power3.out'
 const CONTENT_REVEAL_DURATION = 2.2
 const CONTENT_REVEAL_EASE = 'power1.inOut'
-const VIDEO_PLAYBACK_RATE = 1
+const VIDEO_PLAYBACK_RATE = 3
 const DEVICE_SIZE_IMAGE_SRC = '/images/device-size-img.png'
 
 const H2_WORDS_START = 0.08
@@ -364,9 +364,15 @@ const DeviceSize = () => {
                   },
                   '-=0.4'
                 )
-                tl.add(() => {
-                  hasPlayedInViewRef.current = true
-                })
+            tl.add(() => {
+              hasPlayedInViewRef.current = true
+
+              // lock final layout explicitly
+              gsap.set(wrap, {
+                y: -window.innerHeight * 0.18,
+                scale: 0.97,
+              })
+            })
               },
             })
 
@@ -483,13 +489,9 @@ const DeviceSize = () => {
             if (!hasPlayedInViewRef.current) {
               playSequence()
             }
-            return
           }
 
-          const sectionMovedBelowViewport = entry.boundingClientRect.top >= window.innerHeight
-          if (isScrollingUpRef.current && sectionMovedBelowViewport) {
-            resetSequence()
-          }
+          // NO reset logic at all
         },
         {
           rootMargin: '0px 0px -25% 0px',

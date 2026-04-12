@@ -9,7 +9,7 @@ import { useRef } from 'react'
 
 const CARTRIDGE_VIDEO_SRC = '/videos/chemical-cartridge-1.mp4'
 const CARTRIDGE_IMAGE_SRC = '/images/chemical-cartridge.png'
-const CARTRIDGE_VIDEO_PLAYBACK_RATE = 1
+const CARTRIDGE_VIDEO_PLAYBACK_RATE = 3
 const AUTOPLAY_MOVE_DURATION = 1.4
 const AUTOPLAY_MOVE_EASE = 'power2.inOut'
 const CENTER_HOLD_DURATION = 0.24
