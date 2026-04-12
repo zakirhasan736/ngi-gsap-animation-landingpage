@@ -18,9 +18,11 @@ const VIDEO_IMAGE_CROSSFADE_DURATION = 0.8
 const VIDEO_IMAGE_CROSSFADE_EASE = 'power3.out'
 const CONTENT_REVEAL_DURATION = 2.2
 const CONTENT_REVEAL_EASE = 'power1.inOut'
-const VIDEO_PLAYBACK_RATE = 3
+const VIDEO_PLAYBACK_RATE = 1
 const DEVICE_SIZE_IMAGE_SRC = '/images/device-size-img-1.png'
+const isMobile = typeof window !== 'undefined' && window.innerWidth < 991
 
+const videoSrc = isMobile ? '/videos/size-video-1-mobo.mp4' : '/videos/size-video.webm'
 const H2_WORDS_START = 0.08
 const H2_WORDS_END = 0.38
 
@@ -350,18 +352,26 @@ const DeviceSize = () => {
 
                 /* STEP 3: reveal content AFTER layout shift */
 
-                tl.to(
-                  moveState,
-                  {
-                    progress: 1,
-                    duration: 1.2,
-                    ease: 'power3.out',
-                    onUpdate: () => {
-                      blurRevealRef.current?.setProgress(moveState.progress)
-                    },
-                  },
-                  '-=0.5'
-                )
+              tl.to(revealState, {
+                progress: 1,
+                duration: 1.2,
+                ease: 'power3.out',
+                onUpdate: () => {
+                  wordsRef.current?.setProgress(revealState.progress)
+                  blurRevealRef.current?.setProgress(revealState.progress)
+                },
+              })
+
+              tl.add(() => {
+                hasPlayedInViewRef.current = true
+
+                // LOCK final UI state
+                wordsRef.current?.setProgress(1)
+                blurRevealRef.current?.setProgress(1)
+
+                gsap.set(video, { opacity: 0 })
+                gsap.set(image, { autoAlpha: 1 })
+              })
               },
             })
 
@@ -397,8 +407,6 @@ const DeviceSize = () => {
               { filter: 'blur(12px)' },
               {
                 filter: 'blur(0px)',
-                duration: 0.8,
-                ease: 'power2.out',
               },
               0
             )
@@ -583,7 +591,7 @@ const DeviceSize = () => {
         >
           <video
             ref={videoRef}
-            src="./videos/size-video.webm"
+            src={videoSrc}
             className="block h-full w-full object-contain"
             muted
             playsInline

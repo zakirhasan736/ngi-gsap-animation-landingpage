@@ -17,7 +17,9 @@ const DevicePricing = () => {
   const cardsStackRef = useRef<HTMLDivElement>(null)
   const pricingVideoRef = useRef<HTMLVideoElement>(null)
   const transitionPlayedRef = useRef(false)
+const isMobile = typeof window !== 'undefined' && window.innerWidth < 991
 
+const videoSrc = isMobile ? '/videos/device-pricing-circle-mobo.mp4' : '/videos/device-pricing-circle.mp4'
   useGSAP(
     () => {
       const section = sectionRef.current
@@ -179,7 +181,7 @@ const DevicePricing = () => {
         <div className="h-[300px] w-[300px] sm:h-[400px] sm:w-[400px] xl:h-[575px] xl:w-[575px]">
           <video
             ref={pricingVideoRef}
-            src="/videos/device-pricing-circle.mp4"
+            src={videoSrc}
             muted
             playsInline
             preload="auto"

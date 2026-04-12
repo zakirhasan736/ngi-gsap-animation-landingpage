@@ -7,9 +7,11 @@ import gsap from 'gsap'
 import Image from 'next/image'
 import { useRef } from 'react'
 
-const CARTRIDGE_VIDEO_SRC = '/videos/chemical-cartridge-1.mp4'
+const isMobile = typeof window !== 'undefined' && window.innerWidth < 991
+
+const videoSrc = isMobile ? '/videos/chemical-cartridge-1-mobo.mp4' : '/videos/chemical-cartridge-1.mp4'
 const CARTRIDGE_IMAGE_SRC = '/images/chemical-cartridge.png'
-const CARTRIDGE_VIDEO_PLAYBACK_RATE = 3
+const CARTRIDGE_VIDEO_PLAYBACK_RATE = 1
 const AUTOPLAY_MOVE_DURATION = 1.4
 const AUTOPLAY_MOVE_EASE = 'power2.inOut'
 const CENTER_HOLD_DURATION = 0.24
@@ -472,7 +474,7 @@ const ChemicalCartridge = () => {
           <video
             ref={videoRef}
             className="block h-full w-full object-contain"
-            src={CARTRIDGE_VIDEO_SRC}
+            src={videoSrc}
             width={1408}
             height={792}
             muted

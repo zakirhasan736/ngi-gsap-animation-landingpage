@@ -17,7 +17,10 @@ declare global {
   }
 }
 
-const HERO_VIDEO_SRC = '/videos/intro-video.webm'
+
+const isMobile = typeof window !== 'undefined' && window.innerWidth < 991
+
+const videoSrc = isMobile ? '/videos/intro-video-1-mobo.mp4' : '/videos/intro-video.webm'
 const HERO_IMAGE_SRC = '/images/hero-img.png'
 const HERO_VIDEO_IMAGE_CROSSFADE_DURATION = 0.55
 const HERO_VIDEO_IMAGE_CROSSFADE_EASE = 'power2.inOut'
@@ -329,7 +332,7 @@ const Hero = () => {
           <video
             ref={videoRef}
             className="block h-full w-full object-cover"
-            src={HERO_VIDEO_SRC}
+            src={videoSrc}
             id="hero_intro_video"
             muted
             playsInline
