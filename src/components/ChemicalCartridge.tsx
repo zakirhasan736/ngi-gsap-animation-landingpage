@@ -90,14 +90,18 @@ const ChemicalCartridge = () => {
 
         /* MOBILE / TABLET */
         if (!isDesktop) {
+          const pr = pin.getBoundingClientRect()
+          const wrapH = wrap.offsetHeight || pr.height * 0.5
+
+          const centerY = (pr.height - wrapH) / 2
           gsap.set(wrap, {
-            position: 'relative',
-            left: 'auto',
-            top: 'auto',
+            position: 'absolute',
+            top: centerY,
+            left: 0,
             width: '100%',
             height: 'auto',
             scale: 1,
-            zIndex: 1,
+            zIndex: 20,
           })
 
           return
@@ -213,43 +217,80 @@ const ChemicalCartridge = () => {
               defaults: { ease: 'power3.out' },
 
               onComplete: () => {
-                const tl = gsap.timeline()
+               const tl = gsap.timeline()
 
-                /* STEP 2: move to top (stronger + more natural) */
+               /* STEP 1: move FIRST (center → top) */
 
-                tl.to(wrap, {
-                  y: targetY,
-                  scale: 0.92,
-                  duration: 1.2,
-                  ease: 'power4.out',
-                })
+               tl.to(wrap, {
+                 top: 0,
+                 duration: 1.1,
+                 ease: 'power4.out',
+               })
 
-                /* subtle cinematic settle */
+               /* magnetic settle */
 
-                tl.to(
-                  wrap,
-                  {
-                    scale: 0.96,
-                    duration: 0.5,
-                    ease: 'elastic.out(1,0.6)',
-                  },
-                  '-=0.4'
-                )
+               tl.to(
+                 wrap,
+                 {
+                   scale: 0.96,
+                   duration: 0.4,
+                   ease: 'elastic.out(1,0.6)',
+                 },
+                 '-=0.5'
+               )
 
-                /* STEP 3: reveal content AFTER layout shift */
+               /* STEP 2: crossfade AFTER movement */
 
-                tl.to(
-                  moveState,
-                  {
-                    progress: 1,
-                    duration: 1.2,
-                    ease: 'power3.out',
-                    onUpdate: () => {
-                      blurRevealRef.current?.setProgress(moveState.progress)
-                    },
-                  },
-                  '-=0.5'
-                )
+               tl.to(
+                 video,
+                 {
+                   opacity: 0,
+                   duration: 0.6,
+                   ease: 'power2.out',
+                 },
+                 '-=0.2'
+               )
+
+               tl.to(
+                 image,
+                 {
+                   autoAlpha: 1,
+                   duration: 0.8,
+                   ease: 'power3.out',
+                 },
+                 '-=0.6'
+               )
+
+               /* STEP 3: reveal content */
+
+               tl.to(
+                 moveState,
+                 {
+                   progress: 1,
+                   duration: 1.2,
+                   ease: 'power3.out',
+                   onUpdate: () => {
+                     blurRevealRef.current?.setProgress(moveState.progress)
+                   },
+                 },
+                 '-=0.3'
+               )
+
+               /* STEP 4: lock final state */
+
+               tl.add(() => {
+                 hasPlayedInView = true
+
+                 blurRevealRef.current?.setProgress(1)
+
+                 gsap.set(video, { opacity: 0 })
+                 gsap.set(image, { autoAlpha: 1 })
+
+                 gsap.set(wrap, {
+                   top: 0,
+                   scale: 0.96,
+                 })
+               })
               },
             })
 
@@ -360,8 +401,13 @@ const ChemicalCartridge = () => {
           if (entry.isIntersecting) {
             if (!hasPlayedInView) {
               playSequence()
+            } else {
+              // keep final state
+              blurRevealRef.current?.setProgress(1)
+
+              gsap.set(video, { opacity: 0 })
+              gsap.set(image, { autoAlpha: 1 })
             }
-            return
           }
 
           const sectionMovedBelowViewport = entry.boundingClientRect.top >= window.innerHeight

@@ -181,12 +181,16 @@ const DeviceSize = () => {
 
         /* MOBILE / TABLET */
         if (!isDesktop) {
+          const pr = pin.getBoundingClientRect()
+
+          const startY = (pr.height - wrap.offsetHeight) / 2
+
           gsap.set(wrap, {
             position: 'relative',
-            left: 'auto',
-            top: 'auto',
+            left: 0,
+            top: startY,
             width: '100%',
-            height: 'auto',
+            // height: 'auto',
             scale: 1,
             zIndex: 1,
             clearProps: 'top,left',
@@ -328,58 +332,80 @@ const DeviceSize = () => {
               onComplete: () => {
                 const tl = gsap.timeline()
 
-                /* STEP 2: move to top (stronger + more natural) */
+                /* STEP 1: move from center → natural top */
 
-                tl.fromTo(
-                  wrap,
-                  { y: 120, scale: 1 },
-                  {
-                    y: 0,
-                    scale: 0.92,
-                    duration: 1.2,
-                    ease: 'power4.out',
-                  }
-                )
+                tl.to(wrap, {
+                  top: 0,
+                  duration: 1.1,
+                  ease: 'power4.out',
+                })
 
-                /* subtle cinematic settle */
+                /* subtle magnetic settle */
 
                 tl.to(
                   wrap,
                   {
-                    scale: 0.96,
-                    duration: 0.5,
+                    scale: 0.97,
+                    duration: 0.4,
                     ease: 'elastic.out(1,0.6)',
                   },
-                  '-=0.4'
+                  '-=0.5'
                 )
 
-                /* STEP 3: reveal content AFTER layout shift */
+                /* STEP 2: crossfade AFTER move */
 
-              tl.to(revealState, {
-                progress: 1,
-                duration: 1.2,
-                ease: 'power3.out',
-                onUpdate: () => {
-                  wordsRef.current?.setProgress(revealState.progress)
-                  blurRevealRef.current?.setProgress(revealState.progress)
-                },
-              })
+                tl.to(
+                  video,
+                  {
+                    opacity: 0,
+                    duration: 0.6,
+                    ease: 'power2.out',
+                  },
+                  '-=0.2'
+                )
 
-              tl.add(() => {
-                hasPlayedInViewRef.current = true
+                tl.to(
+                  image,
+                  {
+                    autoAlpha: 1,
+                    duration: 0.8,
+                    ease: 'power3.out',
+                  },
+                  '-=0.6'
+                )
 
-                wordsRef.current?.setProgress(1)
-                blurRevealRef.current?.setProgress(1)
+                /* STEP 3: reveal content */
 
-                gsap.set(video, { opacity: 0 })
-                gsap.set(image, { autoAlpha: 1 })
+                tl.to(
+                  revealState,
+                  {
+                    progress: 1,
+                    duration: 1.2,
+                    ease: 'power3.out',
+                    onUpdate: () => {
+                      wordsRef.current?.setProgress(revealState.progress)
+                      blurRevealRef.current?.setProgress(revealState.progress)
+                    },
+                  },
+                  '-=0.3'
+                )
 
-                // // 🔥 lock position (important)
-                // gsap.set(wrap, {
-                //   y: -window.innerHeight * 0.18,
-                //   scale: 0.96,
-                // })
-              })
+                /* STEP 4: lock final state */
+
+                tl.add(() => {
+                  hasPlayedInViewRef.current = true
+
+                  wordsRef.current?.setProgress(1)
+                  blurRevealRef.current?.setProgress(1)
+
+                  gsap.set(video, { opacity: 0 })
+                  gsap.set(image, { autoAlpha: 1 })
+
+                  gsap.set(wrap, {
+                    top: 0,
+                    scale: 0.97,
+                  })
+                })
               },
             })
 
