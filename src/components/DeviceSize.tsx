@@ -321,7 +321,6 @@ const DeviceSize = () => {
               },
             })
           } else {
-            const targetY = -window.innerHeight * 0.22
 
             crossfadeTimeline = gsap.timeline({
               defaults: { ease: 'power3.out' },
@@ -331,8 +330,8 @@ const DeviceSize = () => {
 
                 /* STEP 2: move to top (stronger + more natural) */
 
-                tl.to(wrap, {
-                  y: targetY,
+                tl.fromTo(wrap, {Y:120}, {
+                  y: 0,
                   scale: 0.92,
                   duration: 1.2,
                   ease: 'power4.out',
@@ -452,23 +451,23 @@ const DeviceSize = () => {
         })
       }
 
-      const resetSequence = () => {
-        hasPlayedInViewRef.current = false
-        moveTween?.kill()
-        revealTween?.kill()
-        holdTween?.kill()
-        crossfadeTimeline?.kill()
-        crossfadeTimeline = null
-        hasStartedPostVideoAnimation = false
-        moveState.progress = 0
-        revealState.progress = 0
-        progressRef.current = 0
-        applyProgress(0)
-        video.pause()
-        video.currentTime = 0
-        gsap.set(video, { opacity: 1, autoAlpha: 1 })
-        gsap.set(image, { autoAlpha: 0 })
-      }
+      // const resetSequence = () => {
+      //   hasPlayedInViewRef.current = false
+      //   moveTween?.kill()
+      //   revealTween?.kill()
+      //   holdTween?.kill()
+      //   crossfadeTimeline?.kill()
+      //   crossfadeTimeline = null
+      //   hasStartedPostVideoAnimation = false
+      //   moveState.progress = 0
+      //   revealState.progress = 0
+      //   progressRef.current = 0
+      //   applyProgress(0)
+      //   video.pause()
+      //   video.currentTime = 0
+      //   gsap.set(video, { opacity: 1, autoAlpha: 1 })
+      //   gsap.set(image, { autoAlpha: 0 })
+      // }
 
       lastScrollYRef.current = window.scrollY
       const onScroll = () => {
@@ -591,15 +590,18 @@ const DeviceSize = () => {
         >
           <video
             ref={videoRef}
-            src={videoSrc}
+            // src={videoSrc}
             className="block h-full w-full object-contain"
             muted
             playsInline
             preload="auto"
             disablePictureInPicture
-            controlsList="nodownload"
+            // controlsList="nodownload"
             poster="./videos/size-video.jpg"
-          />
+          >
+            <source src="./videos/size-video-1-mobo.mp4" media="(max-width: 990px)" type="video/mp4" />
+            <source src="./videos/size-video.webm" media="(min-width: 991px)" type="video/webm" />
+          </video>
           <div ref={imageRef} className="absolute inset-0 md:top-10">
             <Image
               src={DEVICE_SIZE_IMAGE_SRC}

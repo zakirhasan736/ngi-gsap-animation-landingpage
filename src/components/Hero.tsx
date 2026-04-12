@@ -46,6 +46,7 @@ const Hero = () => {
 
   useGSAP(
     () => {
+      const isDesktop = window.innerWidth >= 991
       const video = videoRef.current
       const image = imageRef.current
       const mediaWrap = mediaWrapRef.current
@@ -178,44 +179,46 @@ const Hero = () => {
         maybeStartPlayback()
       }
       const initScrollAnimation = () => {
-        const scrollTl = gsap.timeline({
-          scrollTrigger: {
-            trigger: rootRef.current,
-            start: 'top top',
-            end: '+=120%',
-            scrub: true,
-            pin: true,
-            anticipatePin: 1,
-          },
+        const mm = gsap.matchMedia()
+
+        mm.add('(min-width: 991px)', () => {
+          const scrollTl = gsap.timeline({
+            scrollTrigger: {
+              trigger: rootRef.current,
+              start: 'top top',
+              end: '+=120%',
+              scrub: true,
+              pin: true,
+              anticipatePin: 1,
+            },
+          })
+
+          scrollTl
+
+            .to(
+              image,
+              {
+                autoAlpha: 1,
+                scale: 1.2,
+                y: -20,
+                duration: 1.2,
+                ease: 'power3.out',
+              },
+              0
+            )
+
+            .to(
+              mediaWrap,
+              {
+                y: -window.innerHeight * 0.35,
+                duration: 1,
+                ease: 'none',
+              },
+              0
+            )
         })
-
-        scrollTl
-
-          // image zoom
-          .to(
-            image,
-            {
-              autoAlpha: 1,
-              scale: 1,
-              y: -20,
-              duration: 1.2,
-              ease: 'power3.out',
-            },
-            0
-          )
-
-          // hero moves upward
-          .to(
-            mediaWrap,
-            {
-              y: -window.innerHeight * 0.35,
-              duration: 1,
-              ease: 'none',
-            },
-            0
-          )
       }
-    
+
       const onEnded = () => {
         if (hasStartedPostVideoTransition) return
         hasStartedPostVideoTransition = true
@@ -332,15 +335,18 @@ const Hero = () => {
           <video
             ref={videoRef}
             className="block h-full w-full object-cover"
-            src={videoSrc}
+            // src={videoSrc}
             id="hero_intro_video"
             muted
             playsInline
             disablePictureInPicture
-            controlsList="nodownload noplaybackrate"
+            // controlsList="nodownload noplaybackrate"
             preload="auto"
             poster="./videos/hero-video-image.jpg"
-          />
+          >
+            <source src="./videos/intro-video-1-mobo.mp4" media="(max-width: 990px)" type="video/mp4" />
+            <source src="./videos/intro-video.webm" media="(min-width: 991px)" type="video/webm" />
+          </video>
         </div>
         <div
           ref={imageRef}

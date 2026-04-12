@@ -468,22 +468,25 @@ const ChemicalCartridge = () => {
 
         <div
           ref={videoWrapRef}
-          className="pointer-events-none relative order-1 mx-auto flex min-h-[60vh] w-full items-center justify-center overflow-hidden lg:absolute lg:top-0 lg:left-0 lg:h-full lg:w-full"
+          className="pointer-events-none relative order-1 mx-auto flex w-full items-center justify-center overflow-hidden lg:absolute lg:top-0 lg:left-0 lg:h-full lg:min-h-[60vh] lg:w-full"
           aria-hidden
         >
           <video
             ref={videoRef}
             className="block h-full w-full object-contain"
-            src={videoSrc}
+            // src={videoSrc}
             width={1408}
             height={792}
             muted
             playsInline
             preload="auto"
-            // disablePictureInPicture
+            disablePictureInPicture
             // controlsList="nodownload"
             // poster="./videos/chemical-cartridge.jpg"
-          />
+          >
+            <source src="./videos/chemical-cartridge-1-mobo.mp4" media="(max-width: 990px)" type="video/mp4" />
+            <source src="./videos/chemical-cartridge-1.mp4" media="(min-width: 991px)" type="video/webm" />
+          </video>
           <div ref={imageRef} className="absolute inset-0">
             <Image
               src={CARTRIDGE_IMAGE_SRC}

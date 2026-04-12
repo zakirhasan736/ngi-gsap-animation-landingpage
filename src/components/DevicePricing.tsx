@@ -181,14 +181,17 @@ const videoSrc = isMobile ? '/videos/device-pricing-circle-mobo.mp4' : '/videos/
         <div className="h-[300px] w-[300px] sm:h-[400px] sm:w-[400px] xl:h-[575px] xl:w-[575px]">
           <video
             ref={pricingVideoRef}
-            src={videoSrc}
+            // src={videoSrc}
             muted
             playsInline
             preload="auto"
             disablePictureInPicture
-            controlsList="nodownload noplaybackrate"
+            // controlsList="nodownload noplaybackrate"
             className="h-full w-full object-cover"
-          />
+          >
+            <source src="./videos/device-pricing-circle-mobo.mp4" media="(max-width: 990px)" type="video/mp4" />
+            <source src="./videos/device-pricing-circle.mp4" media="(min-width: 991px)" type="video/mp4" />
+          </video>
         </div>
 
         {/* right content */}

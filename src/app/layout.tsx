@@ -16,7 +16,22 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${interTight.variable} ${sfPro.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
-        <link rel="preload" as="video" href="./videos/intro-video.webm" type="video/webm" />
+        <link
+          rel="preload"
+          as="video"
+          href="./videos/intro-video-1-mobo.mp4"
+          type="video/mp4"
+          media="(max-width: 990px)"
+        />
+        <link rel="preload" as="video" href="./videos/intro-video.webm" type="video/webm" media="(min-width: 991px)" />
+        <link
+          rel="preload"
+          as="video"
+          href="./videos/size-video-1-mobo.mp4"
+          type="video/mp4"
+          media="(max-width: 990px)"
+        />
+        <link rel="preload" as="video" href="./videos/size-video.webm" type="video/webm" media="(min-width: 991px)" />
       </head>
       <ClientLayout>{children}</ClientLayout>
     </html>
