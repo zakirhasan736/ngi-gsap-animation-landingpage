@@ -10,7 +10,7 @@ const SideBySideBanner = () => {
           <div data-side-by-side-banner="" className="relative w-full overflow-hidden rounded-2xl">
             <div className="h-[400px] w-full md:h-[350px] lg:h-full">
               <Image
-                src="/images/side-by-side-banner.png"
+                src="/images/side-by-side-banner-1.png"
                 alt="side-by-side-banner-img"
                 width={1920}
                 height={1080}

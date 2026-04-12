@@ -19,7 +19,7 @@ const VIDEO_IMAGE_CROSSFADE_EASE = 'power3.out'
 const CONTENT_REVEAL_DURATION = 2.2
 const CONTENT_REVEAL_EASE = 'power1.inOut'
 const VIDEO_PLAYBACK_RATE = 3
-const DEVICE_SIZE_IMAGE_SRC = '/images/device-size-img.png'
+const DEVICE_SIZE_IMAGE_SRC = '/images/device-size-img-1.png'
 
 const H2_WORDS_START = 0.08
 const H2_WORDS_END = 0.38
@@ -319,71 +319,60 @@ const DeviceSize = () => {
               },
             })
           } else {
-            const moveY = window.innerHeight * 0.18
+            const targetY = -window.innerHeight * 0.22
 
             crossfadeTimeline = gsap.timeline({
-              defaults: {
-                ease: 'power3.out',
-              },
+              defaults: { ease: 'power3.out' },
 
               onComplete: () => {
-                /* STEP 2: cinematic lift */
-
                 const tl = gsap.timeline()
 
+                /* STEP 2: move to top (stronger + more natural) */
+
                 tl.to(wrap, {
-                  y: -moveY,
-                  scale: 0.96,
-                  duration: 1.1,
+                  y: targetY,
+                  scale: 0.92,
+                  duration: 1.2,
                   ease: 'power4.out',
                 })
 
-                /* micro settle (magnetic feel) */
+                /* subtle cinematic settle */
+
                 tl.to(
                   wrap,
                   {
-                    scale: 0.97,
+                    scale: 0.96,
                     duration: 0.5,
                     ease: 'elastic.out(1,0.6)',
                   },
-                  '-=0.3'
+                  '-=0.4'
                 )
 
-                /* STEP 3: reveal content (staggered timing) */
+                /* STEP 3: reveal content AFTER layout shift */
 
                 tl.to(
-                  revealState,
+                  moveState,
                   {
                     progress: 1,
                     duration: 1.2,
                     ease: 'power3.out',
                     onUpdate: () => {
-                      wordsRef.current?.setProgress(revealState.progress)
-                      blurRevealRef.current?.setProgress(revealState.progress)
+                      blurRevealRef.current?.setProgress(moveState.progress)
                     },
                   },
-                  '-=0.4'
+                  '-=0.5'
                 )
-            tl.add(() => {
-              hasPlayedInViewRef.current = true
-
-              // lock final layout explicitly
-              gsap.set(wrap, {
-                y: -window.innerHeight * 0.18,
-                scale: 0.97,
-              })
-            })
               },
             })
 
-            /* STEP 1: smooth crossfade */
+            /* STEP 1: cinematic crossfade */
 
             crossfadeTimeline.fromTo(
               video,
               { opacity: 1 },
               {
                 opacity: 0,
-                duration: 0.7,
+                duration: 0.6,
                 ease: 'power2.out',
               },
               0
@@ -391,7 +380,7 @@ const DeviceSize = () => {
 
             crossfadeTimeline.fromTo(
               image,
-              { autoAlpha: 0, scale: 1.04 },
+              { autoAlpha: 0, scale: 1.05 },
               {
                 autoAlpha: 1,
                 scale: 1,
@@ -401,11 +390,11 @@ const DeviceSize = () => {
               0
             )
 
-            /* optional: subtle blur → sharp (very premium) */
+            /* cinematic blur → sharp */
 
             crossfadeTimeline.fromTo(
               wrap,
-              { filter: 'blur(10px)' },
+              { filter: 'blur(12px)' },
               {
                 filter: 'blur(0px)',
                 duration: 0.8,

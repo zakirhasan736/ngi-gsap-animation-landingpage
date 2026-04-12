@@ -11,7 +11,7 @@ const CTABanner = () => {
           <div data-cta-banner="" className="relative h-full w-full overflow-hidden rounded-2xl">
             <div className="h-[400px] md:h-[350px] lg:h-full">
               <Image
-                src="/images/cta-banner.png"
+                src="/images/cta-banner-1.png"
                 alt="cta-banner-img"
                 width={1920}
                 height={1080}
