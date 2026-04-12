@@ -374,7 +374,19 @@ const DeviceSize = () => {
                   '-=0.6'
                 )
 
-                /* STEP 3: reveal content */
+                /* STEP 3: show + reveal content */
+
+                tl.to(
+                  '.content-box-wrapper-size-matter',
+                  {
+                    opacity: 1,
+                    display: 'inline-block', 
+                    pointerEvents: 'auto',
+                    duration: 0.6,
+                    ease: 'power3.out',
+                  },
+                  '-=0.3'
+                )
 
                 tl.to(
                   revealState,
@@ -498,18 +510,35 @@ const DeviceSize = () => {
           const entry = entries[0]
           if (!entry) return
 
-          if (entry.isIntersecting) {
-            if (!hasPlayedInViewRef.current) {
-              playSequence()
-            } else {
+          // if (entry.isIntersecting) {
+          //   if (!hasPlayedInViewRef.current) {
+          //     playSequence()
+          //   } else {
               
-              wordsRef.current?.setProgress(1)
-              blurRevealRef.current?.setProgress(1)
+          //     wordsRef.current?.setProgress(1)
+          //     blurRevealRef.current?.setProgress(1)
 
-              gsap.set(video, { opacity: 0 })
-              gsap.set(image, { autoAlpha: 1 })
-            }
-          }
+          //     gsap.set(video, { opacity: 0 })
+          //     gsap.set(image, { autoAlpha: 1 })
+          //   }
+          // }
+           if (entry.isIntersecting) {
+            if (!hasPlayedInViewRef.current) {
+               playSequence()
+             } else {
+               // keep final state
+                   wordsRef.current?.setProgress(1)
+                   blurRevealRef.current?.setProgress(1)
+
+               gsap.set(video, { opacity: 0 })
+               gsap.set(image, { autoAlpha: 1 })
+               gsap.set('.content-box-wrapper-size-matter', {
+                 opacity: 1,
+                 display: 'inline-block',
+                 pointerEvents: 'auto',
+               })
+             }
+           }
 
           // NO reset logic at all
         },
@@ -543,67 +572,69 @@ const DeviceSize = () => {
 
   return (
     <section ref={rootRef} className="relative">
-      <div ref={pinRef} className="wrapper relative flex min-h-svh flex-col justify-center py-10">
-        <div className="relative z-10 order-2 mb-4 sm:mb-6 lg:order-1 lg:mb-0 xl:mb-[43px]">
-          <CopyWordsScrub ref={wordsRef} segment={{ start: H2_WORDS_START, end: H2_WORDS_END }}>
-            <h2 className="font-sf-pro text-[28px] leading-[128%] font-medium tracking-[-2%] text-white sm:text-[48px] xl:text-[72px]">
-              Because size matters
-            </h2>
-          </CopyWordsScrub>
-        </div>
+      <div ref={pinRef} className="wrapper relative flex min-h-svh flex-col-reverse justify-center py-10">
+        <div className="">
+          <div className="content-box-wrapper-size-matter relative z-10 order-2 mb-4 hidden opacity-0 sm:mb-6 lg:order-1 lg:mb-0 xl:mb-[43px]">
+            <CopyWordsScrub ref={wordsRef} segment={{ start: H2_WORDS_START, end: H2_WORDS_END }}>
+              <h2 className="font-sf-pro text-[28px] leading-[128%] font-medium tracking-[-2%] text-white sm:text-[48px] xl:text-[72px]">
+                Because size matters
+              </h2>
+            </CopyWordsScrub>
+          </div>
 
-        <div className="contents lg:relative lg:order-2 lg:grid lg:grid-cols-[350px_1fr] lg:items-center xl:grid-cols-[428px_1fr] xl:gap-20">
-          <BlurSlideReveal
-            ref={blurRevealRef}
-            mode="controlled"
-            segments={[...LEFT_BLUR_SEGMENTS]}
-            y={36}
-            blurPx={12}
-            className="relative z-10 order-3 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-1.5 lg:order-1 lg:grid-cols-1 lg:gap-4"
-          >
-            <p className="font-sf-pro mb-4 text-[20px] leading-[140%] font-medium tracking-[-0.5px] text-white will-change-[transform,opacity,filter] sm:col-span-2 sm:text-[32px] lg:col-span-1 lg:mb-0 xl:mb-6">
-              Flexibility for your needs
-            </p>
+          <div className="content-box-wrapper-size-matter contents hidden opacity-0 lg:relative lg:order-2 lg:grid lg:grid-cols-[350px_1fr] lg:items-center xl:grid-cols-[428px_1fr] xl:gap-20">
+            <BlurSlideReveal
+              ref={blurRevealRef}
+              mode="controlled"
+              segments={[...LEFT_BLUR_SEGMENTS]}
+              y={36}
+              blurPx={12}
+              className="relative z-10 order-3 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-1.5 lg:order-1 lg:grid-cols-1 lg:gap-4"
+            >
+              <p className="font-sf-pro mb-4 text-[20px] leading-[140%] font-medium tracking-[-0.5px] text-white will-change-[transform,opacity,filter] sm:col-span-2 sm:text-[32px] lg:col-span-1 lg:mb-0 xl:mb-6">
+                Flexibility for your needs
+              </p>
 
-            <div className="relative rounded-[8px] bg-[linear-gradient(112.82deg,#3C98EE_-5.87%,#0D3459_7.76%)] p-px blur-[24] will-change-[transform,opacity,filter]">
-              <div className="h-full rounded-[8px] bg-black p-px">
-                <div className="h-full bg-white/8 p-6">
-                  <h3 className="text-size-primary mb-[11px] text-[36px] leading-[128%] font-normal tracking-[-2%]">
-                    8
-                  </h3>
-                  <p className="font-sf-pro text-[18px] leading-[140%] tracking-[-0.5px] text-white">
-                    Lorem ipsum in nunc pulvinar pellentesque vel semper aenean sed id pharetra ultrices felis lectus
-                    eget felis feugiat nibh vestibulum mi at diam dolor
-                  </p>
+              <div className="relative rounded-[8px] bg-[linear-gradient(112.82deg,#3C98EE_-5.87%,#0D3459_7.76%)] p-px blur-[24] will-change-[transform,opacity,filter]">
+                <div className="h-full rounded-[8px] bg-black p-px">
+                  <div className="h-full bg-white/8 p-6">
+                    <h3 className="text-size-primary mb-[11px] text-[36px] leading-[128%] font-normal tracking-[-2%]">
+                      8
+                    </h3>
+                    <p className="font-sf-pro text-[18px] leading-[140%] tracking-[-0.5px] text-white">
+                      Lorem ipsum in nunc pulvinar pellentesque vel semper aenean sed id pharetra ultrices felis lectus
+                      eget felis feugiat nibh vestibulum mi at diam dolor
+                    </p>
+                  </div>
                 </div>
+
+                <ConnectorLine className="desktop:w-[220px] top-[200px] xl:top-1/2 xl:w-[138px]" />
               </div>
 
-              <ConnectorLine className="desktop:w-[220px] top-[200px] xl:top-1/2 xl:w-[138px]" />
-            </div>
+              <div className="relative rounded-[8px] bg-[linear-gradient(112.82deg,#3C98EE_-5.87%,#0D3459_7.76%)] p-px blur-[24] will-change-[transform,opacity,filter]">
+                <div className="h-full rounded-[8px] bg-black p-px">
+                  <div className="h-full bg-white/8 p-6">
+                    <h3 className="text-size-primary mb-[11px] text-[64px] leading-[128%] font-normal tracking-[-2%]">
+                      32
+                    </h3>
+                    <p className="font-sf-pro text-[18px] leading-[140%] tracking-[-0.5px] text-white">
+                      Lorem ipsum in nunc pulvinar pellentesque vel semper aenean sed id pharetra ultrices felis lectus
+                      eget felis feugiat nibh vestibulum mi at diam dolor
+                    </p>
+                  </div>
+                </div> 
 
-            <div className="relative rounded-[8px] bg-[linear-gradient(112.82deg,#3C98EE_-5.87%,#0D3459_7.76%)] p-px blur-[24] will-change-[transform,opacity,filter]">
-              <div className="h-full rounded-[8px] bg-black p-px">
-                <div className="h-full bg-white/8 p-6">
-                  <h3 className="text-size-primary mb-[11px] text-[64px] leading-[128%] font-normal tracking-[-2%]">
-                    32
-                  </h3>
-                  <p className="font-sf-pro text-[18px] leading-[140%] tracking-[-0.5px] text-white">
-                    Lorem ipsum in nunc pulvinar pellentesque vel semper aenean sed id pharetra ultrices felis lectus
-                    eget felis feugiat nibh vestibulum mi at diam dolor
-                  </p>
-                </div>
+                <ConnectorLine staggered className="top-[50px] xl:top-1/2 xl:w-[290px]" />
               </div>
+            </BlurSlideReveal>
 
-              <ConnectorLine staggered className="top-[50px] xl:top-1/2 xl:w-[290px]" />
+            <div className="relative order-1 mb-6 hidden justify-center lg:order-2 lg:mt-14 lg:mb-0 lg:flex lg:justify-end xl:mt-0">
+              <div
+                ref={rightSlotRef}
+                className="h-[260px] w-full max-w-[330px] sm:h-[350px] sm:max-w-[600px] xl:h-[415px] xl:max-w-[845px]"
+                aria-hidden
+              />
             </div>
-          </BlurSlideReveal>
-
-          <div className="relative order-1 mb-6 hidden justify-center lg:order-2 lg:mt-14 lg:mb-0 lg:flex lg:justify-end xl:mt-0">
-            <div
-              ref={rightSlotRef}
-              className="h-[260px] w-full max-w-[330px] sm:h-[350px] sm:max-w-[600px] xl:h-[415px] xl:max-w-[845px]"
-              aria-hidden
-            />
           </div>
         </div>
 

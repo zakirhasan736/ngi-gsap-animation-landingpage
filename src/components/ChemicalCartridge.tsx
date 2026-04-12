@@ -89,23 +89,22 @@ const ChemicalCartridge = () => {
         const startTop = (pr.height - startH) / 2
 
         /* MOBILE / TABLET */
-        if (!isDesktop) {
-          const pr = pin.getBoundingClientRect()
-          const wrapH = wrap.offsetHeight || pr.height * 0.5
+          if (!isDesktop) {
+            const pr = pin.getBoundingClientRect()
+            const wrapH = wrap.offsetHeight || pr.height * 0.5
 
-          const centerY = (pr.height - wrapH) / 2
-          gsap.set(wrap, {
-            position: 'absolute',
-            top: centerY,
-            left: 0,
-            width: '100%',
-            height: 'auto',
-            scale: 1,
-            zIndex: 20,
-          })
+            const centerY = (pr.height - wrapH) / 2
 
-          return
-        }
+            gsap.set(wrap, {
+              position: 'absolute',
+              top: centerY,
+              left: 0,
+              width: '100%',
+              zIndex: 20,
+            })
+
+            return
+          }
 
         const raw = p < MOVE_START ? 0 : p >= MOVE_END ? 1 : segment01(p, MOVE_START, MOVE_END)
         const u = gsap.parseEase('power4.out')(raw)
@@ -136,17 +135,17 @@ const ChemicalCartridge = () => {
 
         applyVideoLayout(nextProgress)
 
-        if (!contentRevealPlayedRef.current && nextProgress >= CONTENT_REVEAL_TRIGGER) {
-          contentRevealPlayedRef.current = true
-          const revealState = { progress: 0 }
-          gsap.to(revealState, {
-            progress: 1,
-            duration: 1.6,
-            ease: 'power4.out',
-            overwrite: true,
-            onUpdate: () => blurRevealRef.current?.setProgress(revealState.progress),
-          })
-        }
+        // if (!contentRevealPlayedRef.current && nextProgress >= CONTENT_REVEAL_TRIGGER) {
+        //   contentRevealPlayedRef.current = true
+        //   const revealState = { progress: 0 }
+        //   gsap.to(revealState, {
+        //     progress: 1,
+        //     duration: 1.6,
+        //     ease: 'power4.out',
+        //     overwrite: true,
+        //     onUpdate: () => blurRevealRef.current?.setProgress(revealState.progress),
+        //   })
+        // }
       }
 
       const moveState = { progress: 0 }
@@ -217,80 +216,92 @@ const ChemicalCartridge = () => {
               defaults: { ease: 'power3.out' },
 
               onComplete: () => {
-               const tl = gsap.timeline()
+                const tl = gsap.timeline()
 
-               /* STEP 1: move FIRST (center → top) */
+                /* STEP 1: move FIRST (center → top) */
 
-               tl.to(wrap, {
-                 top: 0,
-                 duration: 1.1,
-                 ease: 'power4.out',
-               })
+                tl.to(wrap, {
+                  top: 0,
+                  duration: 1.1,
+                  ease: 'power4.out',
+                })
 
-               /* magnetic settle */
+                /* magnetic settle */
 
-               tl.to(
-                 wrap,
-                 {
-                   scale: 0.96,
-                   duration: 0.4,
-                   ease: 'elastic.out(1,0.6)',
-                 },
-                 '-=0.5'
-               )
+                tl.to(
+                  wrap,
+                  {
+                    scale: 0.96,
+                    duration: 0.4,
+                    ease: 'elastic.out(1,0.6)',
+                  },
+                  '-=0.5'
+                )
 
-               /* STEP 2: crossfade AFTER movement */
+                /* STEP 2: crossfade AFTER movement */
 
-               tl.to(
-                 video,
-                 {
-                   opacity: 0,
-                   duration: 0.6,
-                   ease: 'power2.out',
-                 },
-                 '-=0.2'
-               )
+                tl.to(
+                  video,
+                  {
+                    opacity: 0,
+                    duration: 0.6,
+                    ease: 'power2.out',
+                  },
+                  '-=0.2'
+                )
 
-               tl.to(
-                 image,
-                 {
-                   autoAlpha: 1,
-                   duration: 0.8,
-                   ease: 'power3.out',
-                 },
-                 '-=0.6'
-               )
+                tl.to(
+                  image,
+                  {
+                    autoAlpha: 1,
+                    duration: 0.8,
+                    ease: 'power3.out',
+                  },
+                  '-=0.6'
+                )
 
-               /* STEP 3: reveal content */
+                /* STEP 3: show + reveal content */
 
-               tl.to(
-                 moveState,
-                 {
-                   progress: 1,
-                   duration: 1.2,
-                   ease: 'power3.out',
-                   onUpdate: () => {
-                     blurRevealRef.current?.setProgress(moveState.progress)
-                   },
-                 },
-                 '-=0.3'
-               )
+                tl.to(
+                  '.content-box-wrapper',
+                  {
+                    opacity: 1,
+                    display: 'grid',
+                    pointerEvents: 'auto',
+                    duration: 0.6,
+                    ease: 'power2.out',
+                  },
+                  '-=0.3'
+                )
 
-               /* STEP 4: lock final state */
+                tl.to(
+                  moveState,
+                  {
+                    progress: 1,
+                    duration: 1.2,
+                    ease: 'power3.out',
+                    onUpdate: () => {
+                      blurRevealRef.current?.setProgress(moveState.progress)
+                    },
+                  },
+                  '-=0.3'
+                )
 
-               tl.add(() => {
-                 hasPlayedInView = true
+                /* STEP 4: lock final state */
 
-                 blurRevealRef.current?.setProgress(1)
+                tl.add(() => {
+                  hasPlayedInView = true
 
-                 gsap.set(video, { opacity: 0 })
-                 gsap.set(image, { autoAlpha: 1 })
+                  blurRevealRef.current?.setProgress(1)
 
-                 gsap.set(wrap, {
-                   top: 0,
-                   scale: 0.96,
-                 })
-               })
+                  gsap.set(video, { opacity: 0 })
+                  gsap.set(image, { autoAlpha: 1 })
+
+                  gsap.set(wrap, {
+                    top: 0,
+                    scale: 0.96,
+                  })
+                })
               },
             })
 
@@ -407,6 +418,11 @@ const ChemicalCartridge = () => {
 
               gsap.set(video, { opacity: 0 })
               gsap.set(image, { autoAlpha: 1 })
+              gsap.set('.content-box-wrapper', {
+                opacity: 1,
+                display: 'grid',
+                pointerEvents: 'auto',
+              })
             }
           }
 
@@ -473,7 +489,7 @@ const ChemicalCartridge = () => {
         ref={pinRef}
         className="wrapper relative mx-auto flex min-h-[72vh] flex-col-reverse items-center justify-center overflow-hidden pt-20 lg:block lg:min-h-[min(900px,92vh)] lg:pt-0"
       >
-        <div className="relative grid min-h-[320px] grid-cols-1 items-center lg:min-h-[650px] lg:grid-cols-2 xl:min-h-[900px]">
+        <div className="relative content-box-wrapper opacity-0 hidden lg:grid  min-h-[320px] grid-cols-1 items-center lg:min-h-[650px] lg:grid-cols-2 xl:min-h-[900px]">
           <BlurSlideReveal
             ref={blurRevealRef}
             mode="controlled"

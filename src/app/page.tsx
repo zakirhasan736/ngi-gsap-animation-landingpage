@@ -19,13 +19,13 @@ const Home = () => {
   return (
     <>
       <Preloader />
-      <Hero />
-      <HeaderLightZone>
+      {/* <Hero /> */}
+      {/* <HeaderLightZone>
         <FeatureShowcase />
       </HeaderLightZone>
       <HeaderLightZone>
         <FeatureShowCaseSlider />
-      </HeaderLightZone>
+      </HeaderLightZone> */}
       <ChemicalCartridge />
       <DeviceSize />
       <HeaderLightZone>
