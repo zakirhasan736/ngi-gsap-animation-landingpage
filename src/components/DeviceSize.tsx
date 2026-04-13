@@ -582,7 +582,7 @@ const DeviceSize = () => {
             </CopyWordsScrub>
           </div>
 
-          <div className="content-box-wrapper-size-matter contents hidden opacity-0 lg:relative lg:order-2 lg:grid lg:grid-cols-[350px_1fr] lg:items-center xl:grid-cols-[428px_1fr] xl:gap-20">
+          <div className="content-box-wrapper-size-matter contents hidden opacity-0 lg:relative lg:order-2 lg:grid lg:grid-cols-[350px_1fr] lg:items-center lg:opacity-1 xl:grid-cols-[428px_1fr] xl:gap-20">
             <BlurSlideReveal
               ref={blurRevealRef}
               mode="controlled"
@@ -622,7 +622,7 @@ const DeviceSize = () => {
                       eget felis feugiat nibh vestibulum mi at diam dolor
                     </p>
                   </div>
-                </div> 
+                </div>
 
                 <ConnectorLine staggered className="top-[50px] xl:top-1/2 xl:w-[290px]" />
               </div>

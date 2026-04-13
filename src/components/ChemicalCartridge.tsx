@@ -489,7 +489,7 @@ const ChemicalCartridge = () => {
         ref={pinRef}
         className="wrapper relative mx-auto flex min-h-[72vh] flex-col-reverse items-center justify-center overflow-hidden pt-20 lg:block lg:min-h-[min(900px,92vh)] lg:pt-0"
       >
-        <div className="relative content-box-wrapper opacity-0 hidden lg:grid  min-h-[320px] grid-cols-1 items-center lg:min-h-[650px] lg:grid-cols-2 xl:min-h-[900px]">
+        <div className="relative content-box-wrapper opacity-0 hidden lg:grid lg:opacity-1  min-h-[320px] grid-cols-1 items-center lg:min-h-[650px] lg:grid-cols-2 xl:min-h-[900px]">
           <BlurSlideReveal
             ref={blurRevealRef}
             mode="controlled"
