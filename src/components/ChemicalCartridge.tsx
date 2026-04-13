@@ -135,17 +135,17 @@ const ChemicalCartridge = () => {
 
         applyVideoLayout(nextProgress)
 
-        // if (!contentRevealPlayedRef.current && nextProgress >= CONTENT_REVEAL_TRIGGER) {
-        //   contentRevealPlayedRef.current = true
-        //   const revealState = { progress: 0 }
-        //   gsap.to(revealState, {
-        //     progress: 1,
-        //     duration: 1.6,
-        //     ease: 'power4.out',
-        //     overwrite: true,
-        //     onUpdate: () => blurRevealRef.current?.setProgress(revealState.progress),
-        //   })
-        // }
+        if (!contentRevealPlayedRef.current && nextProgress >= CONTENT_REVEAL_TRIGGER) {
+          contentRevealPlayedRef.current = true
+          const revealState = { progress: 0 }
+          gsap.to(revealState, {
+            progress: 1,
+            duration: 1.6,
+            ease: 'power4.out',
+            overwrite: true,
+            onUpdate: () => blurRevealRef.current?.setProgress(revealState.progress),
+          })
+        }
       }
 
       const moveState = { progress: 0 }
@@ -167,7 +167,9 @@ const ChemicalCartridge = () => {
 
         // HOLD video briefly in center
         holdTween = gsap.delayedCall(CENTER_HOLD_DURATION, () => {
-          if (window.innerWidth >= 1024) {
+         const mm = gsap.matchMedia()
+
+        mm.add('(min-width: 992px)', () => {
             // MOVE video to slot FIRST
             moveTween = gsap.to(moveState, {
               progress: MOVE_END,
@@ -209,8 +211,9 @@ const ChemicalCartridge = () => {
                 })
               },
             })
-          } else {
-            const targetY = -window.innerHeight * 0.22
+          }) 
+
+        mm.add('(max-width: 991px)', () => {
 
             crossfadeTimeline = gsap.timeline({
               defaults: { ease: 'power3.out' },
@@ -342,7 +345,7 @@ const ChemicalCartridge = () => {
               },
               0
             )
-          }
+          })
         })
       }
       const playSequence = () => {
