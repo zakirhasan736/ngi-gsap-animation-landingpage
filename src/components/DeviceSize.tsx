@@ -259,204 +259,207 @@ const DeviceSize = () => {
         })
         // small cinematic hold
         holdTween = gsap.delayedCall(CENTER_HOLD_DURATION, () => {
-          if (window.innerWidth >= 1024) {
-            // MAGNETIC MOVE
-            moveTween = gsap.to(moveState, {
-              progress: MOVE_END,
-              duration: 1.25,
-              ease: 'power4.out',
-              overwrite: true,
-              onUpdate: () => applyProgress(moveState.progress),
+           const mm = gsap.matchMedia()
 
-              onComplete: () => {
-                // crossfade AFTER movement
-                crossfadeTimeline = gsap.timeline()
+        mm.add('(min-width: 992px)', () => {
+          // MAGNETIC MOVE
+          moveTween = gsap.to(moveState, {
+            progress: MOVE_END,
+            duration: 1.25,
+            ease: 'power4.out',
+            overwrite: true,
+            onUpdate: () => applyProgress(moveState.progress),
 
-                crossfadeTimeline.to(
-                  video,
-                  {
-                    opacity: 0,
-                    duration: 0.7,
-                    ease: 'power2.out',
-                  },
-                  0
-                )
+            onComplete: () => {
+              // crossfade AFTER movement
+              crossfadeTimeline = gsap.timeline()
 
-                crossfadeTimeline.to(
-                  image,
-                  {
-                    autoAlpha: 1,
-                    duration: 0.7,
-                    ease: 'power2.out',
-                  },
-                  0
-                )
+              crossfadeTimeline.to(
+                video,
+                {
+                  opacity: 0,
+                  duration: 0.7,
+                  ease: 'power2.out',
+                },
+                0
+              )
 
-                // elastic settle
-                gsap.fromTo(
-                  wrap,
-                  { filter: 'blur(10px)' },
-                  {
-                    filter: 'blur(0px)',
-                    duration: 0.8,
-                    ease: 'power2.out',
-                  }
-                )
-                gsap.fromTo(
-                  wrap,
-                  { scale: 1.06 },
-                  {
-                    scale: 1,
-                    duration: 0.6,
-                    ease: 'elastic.out(1,0.6)',
-                  }
-                )
-                // start content reveal
-                revealTween = gsap.to(revealState, {
+              crossfadeTimeline.to(
+                image,
+                {
+                  autoAlpha: 1,
+                  duration: 0.7,
+                  ease: 'power2.out',
+                },
+                0
+              )
+
+              // elastic settle
+              gsap.fromTo(
+                wrap,
+                { filter: 'blur(10px)' },
+                {
+                  filter: 'blur(0px)',
+                  duration: 0.8,
+                  ease: 'power2.out',
+                }
+              )
+              gsap.fromTo(
+                wrap,
+                { scale: 1.06 },
+                {
+                  scale: 1,
+                  duration: 0.6,
+                  ease: 'elastic.out(1,0.6)',
+                }
+              )
+              // start content reveal
+              revealTween = gsap.to(revealState, {
+                progress: 1,
+                duration: 1.6,
+                ease: 'power4.out',
+                overwrite: true,
+                onUpdate: () => {
+                  const next = MOVE_END + (1 - MOVE_END) * revealState.progress
+                  applyProgress(next)
+                },
+              })
+            },
+          })
+        })
+
+        mm.add('(max-width: 991px)', () => {
+          crossfadeTimeline = gsap.timeline({
+            defaults: { ease: 'power3.out' },
+
+            onComplete: () => {
+              const tl = gsap.timeline()
+
+              /* STEP 1: move from center → natural top */
+
+              tl.to(wrap, {
+                top: 0,
+                duration: 1.1,
+                ease: 'power4.out',
+              })
+
+              /* subtle magnetic settle */
+
+              tl.to(
+                wrap,
+                {
+                  scale: 0.97,
+                  duration: 0.4,
+                  ease: 'elastic.out(1,0.6)',
+                },
+                '-=0.5'
+              )
+
+              /* STEP 2: crossfade AFTER move */
+
+              tl.to(
+                video,
+                {
+                  opacity: 0,
+                  duration: 0.6,
+                  ease: 'power2.out',
+                },
+                '-=0.2'
+              )
+
+              tl.to(
+                image,
+                {
+                  autoAlpha: 1,
+                  duration: 0.8,
+                  ease: 'power3.out',
+                },
+                '-=0.6'
+              )
+
+              /* STEP 3: show + reveal content */
+
+              tl.to(
+                '.content-box-wrapper-size-matter',
+                {
+                  opacity: 1,
+                  display: 'inline-block',
+                  pointerEvents: 'auto',
+                  duration: 0.6,
+                  ease: 'power3.out',
+                },
+                '-=0.3'
+              )
+
+              tl.to(
+                revealState,
+                {
                   progress: 1,
-                  duration: 1.6,
-                  ease: 'power4.out',
-                  overwrite: true,
+                  duration: 1.2,
+                  ease: 'power3.out',
                   onUpdate: () => {
-                    const next = MOVE_END + (1 - MOVE_END) * revealState.progress
-                    applyProgress(next)
+                    wordsRef.current?.setProgress(revealState.progress)
+                    blurRevealRef.current?.setProgress(revealState.progress)
                   },
-                })
-              },
-            })
-          } else {
+                },
+                '-=0.3'
+              )
 
-            crossfadeTimeline = gsap.timeline({
-              defaults: { ease: 'power3.out' },
+              /* STEP 4: lock final state */
 
-              onComplete: () => {
-                const tl = gsap.timeline()
+              tl.add(() => {
+                hasPlayedInViewRef.current = true
 
-                /* STEP 1: move from center → natural top */
+                wordsRef.current?.setProgress(1)
+                blurRevealRef.current?.setProgress(1)
 
-                tl.to(wrap, {
+                gsap.set(video, { opacity: 0 })
+                gsap.set(image, { autoAlpha: 1 })
+
+                gsap.set(wrap, {
                   top: 0,
-                  duration: 1.1,
-                  ease: 'power4.out',
+                  scale: 0.97,
                 })
+              })
+            },
+          })
 
-                /* subtle magnetic settle */
+          /* STEP 1: cinematic crossfade */
 
-                tl.to(
-                  wrap,
-                  {
-                    scale: 0.97,
-                    duration: 0.4,
-                    ease: 'elastic.out(1,0.6)',
-                  },
-                  '-=0.5'
-                )
+          crossfadeTimeline.fromTo(
+            video,
+            { opacity: 1 },
+            {
+              opacity: 0,
+              duration: 0.6,
+              ease: 'power2.out',
+            },
+            0
+          )
 
-                /* STEP 2: crossfade AFTER move */
+          crossfadeTimeline.fromTo(
+            image,
+            { autoAlpha: 0, scale: 1.05 },
+            {
+              autoAlpha: 1,
+              scale: 1,
+              duration: 0.9,
+              ease: 'power3.out',
+            },
+            0
+          )
 
-                tl.to(
-                  video,
-                  {
-                    opacity: 0,
-                    duration: 0.6,
-                    ease: 'power2.out',
-                  },
-                  '-=0.2'
-                )
+          /* cinematic blur → sharp */
 
-                tl.to(
-                  image,
-                  {
-                    autoAlpha: 1,
-                    duration: 0.8,
-                    ease: 'power3.out',
-                  },
-                  '-=0.6'
-                )
-
-                /* STEP 3: show + reveal content */
-
-                tl.to(
-                  '.content-box-wrapper-size-matter',
-                  {
-                    opacity: 1,
-                    display: 'inline-block', 
-                    pointerEvents: 'auto',
-                    duration: 0.6,
-                    ease: 'power3.out',
-                  },
-                  '-=0.3'
-                )
-
-                tl.to(
-                  revealState,
-                  {
-                    progress: 1,
-                    duration: 1.2,
-                    ease: 'power3.out',
-                    onUpdate: () => {
-                      wordsRef.current?.setProgress(revealState.progress)
-                      blurRevealRef.current?.setProgress(revealState.progress)
-                    },
-                  },
-                  '-=0.3'
-                )
-
-                /* STEP 4: lock final state */
-
-                tl.add(() => {
-                  hasPlayedInViewRef.current = true
-
-                  wordsRef.current?.setProgress(1)
-                  blurRevealRef.current?.setProgress(1)
-
-                  gsap.set(video, { opacity: 0 })
-                  gsap.set(image, { autoAlpha: 1 })
-
-                  gsap.set(wrap, {
-                    top: 0,
-                    scale: 0.97,
-                  })
-                })
-              },
-            })
-
-            /* STEP 1: cinematic crossfade */
-
-            crossfadeTimeline.fromTo(
-              video,
-              { opacity: 1 },
-              {
-                opacity: 0,
-                duration: 0.6,
-                ease: 'power2.out',
-              },
-              0
-            )
-
-            crossfadeTimeline.fromTo(
-              image,
-              { autoAlpha: 0, scale: 1.05 },
-              {
-                autoAlpha: 1,
-                scale: 1,
-                duration: 0.9,
-                ease: 'power3.out',
-              },
-              0
-            )
-
-            /* cinematic blur → sharp */
-
-            crossfadeTimeline.fromTo(
-              wrap,
-              { filter: 'blur(12px)' },
-              {
-                filter: 'blur(0px)',
-              },
-              0
-            )
-          }
+          crossfadeTimeline.fromTo(
+            wrap,
+            { filter: 'blur(12px)' },
+            {
+              filter: 'blur(0px)',
+            },
+            0
+          )
+        })
         })
       }
       const playSequence = () => {
@@ -582,7 +585,7 @@ const DeviceSize = () => {
             </CopyWordsScrub>
           </div>
 
-          <div className="content-box-wrapper-size-matter contents hidden opacity-0 lg:relative lg:order-2 lg:grid lg:grid-cols-[350px_1fr] lg:items-center lg:opacity-1 xl:grid-cols-[428px_1fr] xl:gap-20">
+          <div className="content-box-wrapper-size-matter contents hidden opacity-0 lg:relative lg:order-2 lg:grid lg:grid-cols-[350px_1fr] lg:items-center lg:opacity-100 xl:grid-cols-[428px_1fr] xl:gap-20">
             <BlurSlideReveal
               ref={blurRevealRef}
               mode="controlled"
