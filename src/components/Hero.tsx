@@ -198,8 +198,8 @@ const Hero = () => {
               video,
               {
                 autoAlpha: 1,
-                scale: 1.1,
-                y: 30,
+                scale: 1,
+                y: 20,
                 duration: 1.2,
                 ease: 'power3.out',
               },

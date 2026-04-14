@@ -13,6 +13,7 @@ import {
   SideBySideBanner,
   Steps,
 } from '@/components'
+import ArchScroll from '@/components/ArchScroll'
 import { HeaderLightZone } from '@/providers'
 
 const Home = () => {
