@@ -1,5 +1,4 @@
 import {
-  ChemicalCartridge,
   ChemicalCartridgeimgsq,
   CTA,
   CTABanner,

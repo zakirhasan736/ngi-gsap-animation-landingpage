@@ -23,7 +23,15 @@ const DeviceStatistics = () => {
             )}
 
             <div className="h-full w-full">
-              <video src={item.video} muted autoPlay className="h-full w-full object-cover" />
+              <video
+                src={item.video}
+                muted
+                autoPlay
+                playsInline
+                preload="auto"
+                disablePictureInPicture
+                className="h-full w-full object-cover"
+              />
             </div>
           </div>
         ))}

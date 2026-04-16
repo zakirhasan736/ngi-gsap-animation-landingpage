@@ -19,8 +19,8 @@ const SIZE_FRAMES = buildNumberedFrameUrls('/videos/size-video-img', SIZE_FRAME_
   extension: 'webp',
 })
 
-const ENTER_THRESHOLD = 0.56
-const EXIT_THRESHOLD = 0.44
+const ENTER_THRESHOLD = 0.54
+const EXIT_THRESHOLD = 0.5
 
 const LEFT_BLUR_SEGMENTS = [
   { start: 0.16, end: 0.52, y: 28, blurPx: 12 },
@@ -402,10 +402,9 @@ const DeviceSizeimgsq = () => {
         st = ScrollTrigger.create({
           trigger: root,
           start: 'top top',
-          end: () => `+=${Math.round(window.innerHeight * (isMobile ? 3.35 : 4.35))}`,
+          end: () => `+=${Math.round(window.innerHeight * (isMobile ? 2.85 : 3.5))}`,
           pin,
           pinSpacing: true,
-          markers: true,
           scrub: isMobile ? 0.55 : 0.42,
           anticipatePin: 1,
           fastScrollEnd: true,

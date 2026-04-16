@@ -19,14 +19,10 @@ const CARTRIDGE_FRAMES = buildNumberedFrameUrls('/videos/chemical-cartridge-vide
 })
 
 /**
- * Scroll controls only the center sequence until ENTER_THRESHOLD.
- * Then:
- * - lock last frame
- * - auto move right
- * - auto reveal left content
+ * Smaller threshold gap = reverse starts sooner on scroll up
  */
-const ENTER_THRESHOLD = 0.56
-const EXIT_THRESHOLD = 0.44
+const ENTER_THRESHOLD = 0.54
+const EXIT_THRESHOLD = 0.5
 
 const LEFT_BLUR_SEGMENTS = [
   { start: 0.16, end: 0.52, y: 28, blurPx: 12 },
@@ -157,13 +153,6 @@ const ChemicalCartridgeimgsq = () => {
 
         const metricsRef = { current: buildMetrics(isMobile) }
 
-        /**
-         * Magnetic smoothed playhead:
-         * - targetProgress follows ScrollTrigger
-         * - currentProgress lazily follows targetProgress
-         * - targetFrame snaps into small groups
-         * - renderedFrame eases into targetFrame
-         */
         const frameState = {
           targetProgress: 0,
           currentProgress: 0,
@@ -342,14 +331,9 @@ const ChemicalCartridgeimgsq = () => {
         st = ScrollTrigger.create({
           trigger: root,
           start: 'top top',
-          end: () => `+=${Math.round(window.innerHeight * (isMobile ? 3.15 : 4.05))}`,
+          end: () => `+=${Math.round(window.innerHeight * (isMobile ? 2.85 : 3.5))}`,
           pin,
           pinSpacing: true,
-          markers: true,
-          /**
-           * Lenis is already global, so keep scrub lighter.
-           * Internal playhead smoothing handles the premium lazy feel.
-           */
           scrub: isMobile ? 0.55 : 0.42,
           anticipatePin: 1,
           fastScrollEnd: true,
@@ -358,6 +342,7 @@ const ChemicalCartridgeimgsq = () => {
             const tl = transitionTlRef.current
             if (!tl) return
 
+            // reverse sooner on scroll up
             if (self.progress < EXIT_THRESHOLD) {
               applyFrameProgress(self.progress)
 
@@ -371,6 +356,7 @@ const ChemicalCartridgeimgsq = () => {
               return
             }
 
+            // very small buffer zone
             if (self.progress >= EXIT_THRESHOLD && self.progress < ENTER_THRESHOLD) {
               if (!isExpandedRef.current) {
                 applyFrameProgress(self.progress)

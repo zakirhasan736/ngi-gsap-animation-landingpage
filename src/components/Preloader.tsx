@@ -1,5 +1,6 @@
 'use client'
 
+import { buildNumberedFrameUrls } from '@/lib/image-sequence'
 import { usePreloaderGate } from '@/providers/PreloaderGateContext'
 import { cn } from '@/utils/cn'
 import { useLenis } from 'lenis/react'
@@ -24,10 +25,79 @@ const HOLD_AT_FULL_MS = 320
 let isInitialLoad = true
 const MIN_PRELOADER_DURATION_MS = 1200
 
+// const HERO_FRAMES = buildNumberedFrameUrls('/videos/hero-video-img', 278, {
+//   prefix: 'ezgif-frame-',
+//   pad: 3,
+//   extension: 'webp',
+// })
+
+const SIZE_FRAMES = buildNumberedFrameUrls('/videos/size-video-img', 272, {
+  prefix: 'ezgif-frame-',
+  pad: 3,
+  extension: 'webp',
+})
+
+const CARTRIDGE_FRAMES = buildNumberedFrameUrls('/videos/chemical-cartridge-video-img', 125, {
+  prefix: 'ezgif-frame-',
+  pad: 3,
+  extension: 'webp',
+})
+
+const PRELOAD_ASSET_URLS = [ ...SIZE_FRAMES, ...CARTRIDGE_FRAMES]
+
 const DEFAULT_TITLE = 'New Generation Instruments'
 
 const titleTypographyClass =
   'font-inter-tight text-left text-[18px] leading-[128%] tracking-[-0.02em] sm:text-[24px] md:text-[32px] whitespace-nowrap'
+
+  const preloadAssets = async (
+    urls: readonly string[],
+    onProgress: (loaded: number, total: number) => void,
+    signal: AbortSignal,
+    concurrency = 10
+  ) => {
+    if (!urls.length) {
+      onProgress(1, 1)
+      return
+    }
+
+    let loaded = 0
+    let cursor = 0
+    const total = urls.length
+
+    const loadOne = (src: string) =>
+      new Promise<void>((resolve) => {
+        if (signal.aborted) {
+          resolve()
+          return
+        }
+
+        const img = new Image()
+        img.decoding = 'async'
+
+        const done = () => {
+          loaded += 1
+          onProgress(loaded, total)
+          resolve()
+        }
+
+        img.onload = done
+        img.onerror = done
+        img.src = src
+      })
+
+    const worker = async () => {
+      while (!signal.aborted) {
+        const index = cursor
+        cursor += 1
+        if (index >= total) return
+        await loadOne(urls[index]!)
+      }
+    }
+
+    const workers = Array.from({ length: Math.min(concurrency, total) }, () => worker())
+    await Promise.all(workers)
+  }
 
 const Preloader = ({
   title = DEFAULT_TITLE,
@@ -43,8 +113,6 @@ const Preloader = ({
   const [isExiting, setIsExiting] = useState(false)
   const VIDEO_SOURCES = [
     '/videos/intro-video.webm',
-    '/videos/chemical-cartridge-1.mp4',
-    '/videos/size-video.webm',
     '/videos/device-pricing-circle.mp4',
   ]
   useEffect(() => {
@@ -79,24 +147,51 @@ const Preloader = ({
     if (!isVisible) return
 
     const startTime = performance.now()
+    const controller = new AbortController()
     let frameId: number | null = null
+    let timeRatio = 0
+    let assetRatio = 0
+    let minDurationDone = false
+    let assetsDone = false
+
+    const syncProgress = () => {
+      const combined = Math.min(timeRatio, assetRatio)
+      setProgress(Math.round(clamp(combined, 0, 1) * 100))
+      if (minDurationDone && assetsDone) {
+        setProgress(100)
+        setHasFinishedLoading(true)
+      }
+    }
 
     const tick = (now: number) => {
       const elapsed = now - startTime
-      const timeRatio = clamp(elapsed / duration, 0, 1)
-      setProgress(Math.round(timeRatio * 100))
+      timeRatio = clamp(elapsed / duration, 0, 1)
+      if (timeRatio >= 1) minDurationDone = true
+      syncProgress()
 
-      if (timeRatio >= 1) {
-        setProgress(100)
-        setHasFinishedLoading(true)
-      } else {
+      if (!minDurationDone || !assetsDone) {
         frameId = requestAnimationFrame(tick)
       }
     }
 
     frameId = requestAnimationFrame(tick)
 
+    void preloadAssets(
+      PRELOAD_ASSET_URLS,
+      (loaded, total) => {
+        assetRatio = clamp(loaded / total, 0, 1)
+        if (assetRatio >= 1) assetsDone = true
+        syncProgress()
+      },
+      controller.signal
+    ).catch(() => {
+      assetsDone = true
+      assetRatio = 1
+      syncProgress()
+    })
+
     return () => {
+      controller.abort()
       if (frameId) cancelAnimationFrame(frameId)
     }
   }, [duration, isVisible])
