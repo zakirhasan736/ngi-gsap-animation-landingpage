@@ -25,12 +25,6 @@ const HOLD_AT_FULL_MS = 320
 let isInitialLoad = true
 const MIN_PRELOADER_DURATION_MS = 1200
 
-// const HERO_FRAMES = buildNumberedFrameUrls('/videos/hero-video-img', 278, {
-//   prefix: 'ezgif-frame-',
-//   pad: 3,
-//   extension: 'webp',
-// })
-
 const SIZE_FRAMES = buildNumberedFrameUrls('/videos/size-video-img', 272, {
   prefix: 'ezgif-frame-',
   pad: 3,
@@ -43,61 +37,122 @@ const CARTRIDGE_FRAMES = buildNumberedFrameUrls('/videos/chemical-cartridge-vide
   extension: 'webp',
 })
 
-const PRELOAD_ASSET_URLS = [ ...SIZE_FRAMES, ...CARTRIDGE_FRAMES]
+const PRELOAD_ASSET_URLS = [...SIZE_FRAMES, ...CARTRIDGE_FRAMES]
+
+const VIDEO_SOURCES = ['/videos/intro-video.webm', '/videos/device-pricing-circle.mp4']
 
 const DEFAULT_TITLE = 'New Generation Instruments'
 
 const titleTypographyClass =
   'font-inter-tight text-left text-[18px] leading-[128%] tracking-[-0.02em] sm:text-[24px] md:text-[32px] whitespace-nowrap'
 
-  const preloadAssets = async (
-    urls: readonly string[],
-    onProgress: (loaded: number, total: number) => void,
-    signal: AbortSignal,
-    concurrency = 10
-  ) => {
-    if (!urls.length) {
-      onProgress(1, 1)
+const preloadImages = async (
+  urls: readonly string[],
+  onProgress: (loaded: number, total: number) => void,
+  signal: AbortSignal,
+  concurrency = 10
+) => {
+  if (!urls.length) {
+    onProgress(1, 1)
+    return
+  }
+
+  let loaded = 0
+  let cursor = 0
+  const total = urls.length
+
+  const loadOne = (src: string) =>
+    new Promise<void>((resolve) => {
+      if (signal.aborted) {
+        resolve()
+        return
+      }
+
+      const img = new Image()
+      img.decoding = 'async'
+
+      const done = () => {
+        loaded += 1
+        onProgress(loaded, total)
+        resolve()
+      }
+
+      img.onload = done
+      img.onerror = done
+      img.src = src
+    })
+
+  const worker = async () => {
+    while (!signal.aborted) {
+      const index = cursor
+      cursor += 1
+      if (index >= total) return
+      await loadOne(urls[index]!)
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, total) }, () => worker())
+  await Promise.all(workers)
+}
+
+const preloadVideos = async (sources: readonly string[], signal: AbortSignal) => {
+  if (!sources.length) return
+
+  await Promise.all(
+    sources.map(
+      (src) =>
+        new Promise<void>((resolve) => {
+          if (signal.aborted) {
+            resolve()
+            return
+          }
+
+          const video = document.createElement('video')
+          video.preload = 'auto'
+          video.muted = true
+          video.playsInline = true
+          video.src = src
+
+          const done = () => {
+            cleanup()
+            resolve()
+          }
+
+          const cleanup = () => {
+            video.removeEventListener('canplaythrough', done)
+            video.removeEventListener('loadeddata', done)
+            video.removeEventListener('error', done)
+          }
+
+          video.addEventListener('canplaythrough', done, { once: true })
+          video.addEventListener('loadeddata', done, { once: true })
+          video.addEventListener('error', done, { once: true })
+
+          video.load()
+        })
+    )
+  )
+}
+
+const waitForWindowLoad = () =>
+  new Promise<void>((resolve) => {
+    if (typeof window === 'undefined') {
+      resolve()
       return
     }
 
-    let loaded = 0
-    let cursor = 0
-    const total = urls.length
-
-    const loadOne = (src: string) =>
-      new Promise<void>((resolve) => {
-        if (signal.aborted) {
-          resolve()
-          return
-        }
-
-        const img = new Image()
-        img.decoding = 'async'
-
-        const done = () => {
-          loaded += 1
-          onProgress(loaded, total)
-          resolve()
-        }
-
-        img.onload = done
-        img.onerror = done
-        img.src = src
-      })
-
-    const worker = async () => {
-      while (!signal.aborted) {
-        const index = cursor
-        cursor += 1
-        if (index >= total) return
-        await loadOne(urls[index]!)
-      }
+    if (document.readyState === 'complete') {
+      resolve()
+      return
     }
 
-    const workers = Array.from({ length: Math.min(concurrency, total) }, () => worker())
-    await Promise.all(workers)
-  }
+    const onLoad = () => {
+      window.removeEventListener('load', onLoad)
+      resolve()
+    }
+
+    window.addEventListener('load', onLoad)
+  })
 
 const Preloader = ({
   title = DEFAULT_TITLE,
@@ -106,15 +161,13 @@ const Preloader = ({
 }: PreloaderProps) => {
   const lenis = useLenis()
   const { setPreloaderActive } = usePreloaderGate()
+
   const [isVisible, setIsVisible] = useState(isInitialLoad)
   const [isScrollLocked, setIsScrollLocked] = useState(isInitialLoad)
   const [progress, setProgress] = useState(0)
   const [hasFinishedLoading, setHasFinishedLoading] = useState(false)
   const [isExiting, setIsExiting] = useState(false)
-  const VIDEO_SOURCES = [
-    '/videos/intro-video.webm',
-    '/videos/device-pricing-circle.mp4',
-  ]
+
   useEffect(() => {
     if (isVisible || typeof window === 'undefined') return
     window.__heroPreloaderDone = true
@@ -148,16 +201,29 @@ const Preloader = ({
 
     const startTime = performance.now()
     const controller = new AbortController()
+
     let frameId: number | null = null
-    let timeRatio = 0
-    let assetRatio = 0
     let minDurationDone = false
-    let assetsDone = false
+    let imagesDone = false
+    let videosDone = false
+    let windowLoaded = false
+
+    let timeRatio = 0
+    let imageRatio = 0
 
     const syncProgress = () => {
-      const combined = Math.min(timeRatio, assetRatio)
+      /**
+       * Progress bar is driven by time + image-frame preload.
+       * Final completion still waits for:
+       * - minimum duration
+       * - all images
+       * - all videos
+       * - window load
+       */
+      const combined = Math.min(timeRatio, imageRatio)
       setProgress(Math.round(clamp(combined, 0, 1) * 100))
-      if (minDurationDone && assetsDone) {
+
+      if (minDurationDone && imagesDone && videosDone && windowLoaded) {
         setProgress(100)
         setHasFinishedLoading(true)
       }
@@ -166,27 +232,44 @@ const Preloader = ({
     const tick = (now: number) => {
       const elapsed = now - startTime
       timeRatio = clamp(elapsed / duration, 0, 1)
+
       if (timeRatio >= 1) minDurationDone = true
+
       syncProgress()
 
-      if (!minDurationDone || !assetsDone) {
+      if (!minDurationDone || !imagesDone || !videosDone || !windowLoaded) {
         frameId = requestAnimationFrame(tick)
       }
     }
 
     frameId = requestAnimationFrame(tick)
 
-    void preloadAssets(
+    void preloadImages(
       PRELOAD_ASSET_URLS,
       (loaded, total) => {
-        assetRatio = clamp(loaded / total, 0, 1)
-        if (assetRatio >= 1) assetsDone = true
+        imageRatio = clamp(loaded / total, 0, 1)
+        if (imageRatio >= 1) imagesDone = true
         syncProgress()
       },
       controller.signal
     ).catch(() => {
-      assetsDone = true
-      assetRatio = 1
+      imagesDone = true
+      imageRatio = 1
+      syncProgress()
+    })
+
+    void preloadVideos(VIDEO_SOURCES, controller.signal)
+      .then(() => {
+        videosDone = true
+        syncProgress()
+      })
+      .catch(() => {
+        videosDone = true
+        syncProgress()
+      })
+
+    void waitForWindowLoad().then(() => {
+      windowLoaded = true
       syncProgress()
     })
 
@@ -221,50 +304,6 @@ const Preloader = ({
     return () => window.clearTimeout(id)
   }, [isExiting, onAnimationComplete])
 
-  useEffect(() => {
-    let loadedCount = 0
-    const total = VIDEO_SOURCES.length
-
-    const videos: HTMLVideoElement[] = []
-
-    const handleLoaded = () => {
-      loadedCount++
-
-      if (loadedCount >= total) {
-        setHasFinishedLoading(true)
-      }
-    }
-
-    VIDEO_SOURCES.forEach((src) => {
-      const video = document.createElement('video')
-
-      video.src = src
-      video.preload = 'auto'
-      video.muted = true
-      video.playsInline = true
-
-      const onReady = () => {
-        video.removeEventListener('canplaythrough', onReady)
-        handleLoaded()
-      }
-
-      if (video.readyState >= 3) {
-        handleLoaded()
-      } else {
-        video.addEventListener('canplaythrough', onReady)
-        video.load()
-      }
-
-      videos.push(video)
-    })
-
-    return () => {
-      videos.forEach((video) => {
-        video.src = ''
-      })
-    }
-  }, [])
-
   if (!isVisible) return null
 
   return (
@@ -284,12 +323,10 @@ const Preloader = ({
       >
         <div className="wrapper flex h-svh items-center justify-center px-6">
           <div className="relative inline-block max-w-full">
-            {/* Base: full line at muted color (acts as the “under” layer). */}
             <h2 className={cn(titleTypographyClass, 'relative z-0 text-white/28')} aria-hidden>
               {title}
             </h2>
 
-            {/* Clip grows L→R; white copy is full width inside so it never wraps — only the mask width changes. */}
             <div className="absolute inset-y-0 left-0 z-10 overflow-hidden" style={{ width: `${progress}%` }}>
               <h2 className={cn(titleTypographyClass, 'text-white')} aria-live="polite">
                 {title}
