@@ -1,9 +1,10 @@
 import {
   ChemicalCartridge,
+  ChemicalCartridgeimgsq,
   CTA,
   CTABanner,
   DevicePricing,
-  DeviceSize,
+  DeviceSizeimgsq,
   DeviceStatistics,
   FeatureShowcase,
   FeatureShowCaseSlider,
@@ -26,8 +27,8 @@ const Home = () => {
       <HeaderLightZone>
         <FeatureShowCaseSlider />
       </HeaderLightZone>
-      <ChemicalCartridge />
-      <DeviceSize />
+      <ChemicalCartridgeimgsq />
+      <DeviceSizeimgsq />
       <HeaderLightZone>
         <SideBySideBanner />
       </HeaderLightZone>
