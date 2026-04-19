@@ -68,15 +68,14 @@ const ChemicalCartridgeimgsq = () => {
           position: 'absolute',
           x: 0,
           y: 0,
-          xPercent: 0,
-          yPercent: 0,
-          scale: 1,
+          scaleX: 1,
+          scaleY: 1,
           rotate: 0,
           filter: 'blur(0px)',
           transformOrigin: '50% 50%',
           transformPerspective: 1000,
           force3D: true,
-          willChange: 'transform,left,top,width,height,border-radius',
+          willChange: 'transform',
           backfaceVisibility: 'hidden',
         })
 
@@ -193,10 +192,11 @@ const ChemicalCartridgeimgsq = () => {
             top: m.startTop,
             width: m.startW,
             height: m.startH,
-            borderRadius: 10,
-            scale: 1,
-            rotate: 0,
+            x: 0,
             y: 0,
+            scaleX: 1,
+            scaleY: 1,
+            rotate: 0,
             zIndex: 30,
           })
         }
@@ -207,6 +207,17 @@ const ChemicalCartridgeimgsq = () => {
           const m = ensureMetrics()
           if (!m) return
 
+          const startCenterX = m.startLeft + m.startW / 2
+          const startCenterY = m.startTop + m.startH / 2
+          const targetCenterX = m.slotLeft + m.slotW / 2
+          const targetCenterY = m.slotTop + m.slotH / 2
+
+          const deltaX = targetCenterX - startCenterX
+          const deltaY = targetCenterY - startCenterY
+
+          const scaleX = m.slotW / m.startW
+          const scaleY = m.slotH / m.startH
+
           const tl = gsap.timeline({
             paused: true,
             defaults: { ease: 'power3.out' },
@@ -215,12 +226,23 @@ const ChemicalCartridgeimgsq = () => {
             },
           })
 
+          gsap.set(wrap, {
+            x: 0,
+            y: 0,
+            scaleX: 1,
+            scaleY: 1,
+          })
+
           tl.to(
             wrap,
             {
-              scale: isMobile ? 1 : 0.988,
-              duration: 0.12,
-              ease: 'power2.out',
+              x: deltaX,
+              y: deltaY - (isMobile ? 0 : 6),
+              scaleX,
+              scaleY,
+              duration: 0.72,
+              ease: 'expo.inOut',
+              force3D: true,
             },
             0
           )
@@ -228,30 +250,12 @@ const ChemicalCartridgeimgsq = () => {
           tl.to(
             wrap,
             {
-              left: m.slotLeft,
-              top: m.slotTop - (isMobile ? 0 : 8),
-              width: m.slotW,
-              height: m.slotH,
-              borderRadius: 4,
-              rotate: isMobile ? 0 : -0.25,
-              y: isMobile ? 0 : -6,
-              duration: 0.74,
-              ease: 'expo.inOut',
+              y: deltaY,
+              duration: 0.22,
+              ease: 'back.out(1.06)',
+              force3D: true,
             },
-            0.05
-          )
-
-          tl.to(
-            wrap,
-            {
-              top: m.slotTop,
-              rotate: 0,
-              y: 0,
-              scale: 1,
-              duration: 0.28,
-              ease: 'back.out(1.08)',
-            },
-            0.66
+            0.72
           )
 
           tl.to(content, { opacity: 1, duration: 0.01 }, 0.24)
@@ -371,6 +375,7 @@ const ChemicalCartridgeimgsq = () => {
               } else if (tl.progress() > 0 && !tl.isActive()) {
                 tl.progress(0)
               }
+
               return
             }
 

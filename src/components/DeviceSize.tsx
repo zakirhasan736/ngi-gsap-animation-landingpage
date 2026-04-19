@@ -11,18 +11,9 @@ import { useRef } from 'react'
 
 const MOVE_START = 0
 const MOVE_END = 0.42
-const AUTOPLAY_MOVE_DURATION = 1.4
-const AUTOPLAY_MOVE_EASE = 'power2.inOut'
-const CENTER_HOLD_DURATION = 0.24
-const VIDEO_IMAGE_CROSSFADE_DURATION = 0.8
-const VIDEO_IMAGE_CROSSFADE_EASE = 'power3.out'
-const CONTENT_REVEAL_DURATION = 2.2
-const CONTENT_REVEAL_EASE = 'power1.inOut'
-const VIDEO_PLAYBACK_RATE = 1
+const CENTER_HOLD_DURATION = 0.2
 const DEVICE_SIZE_IMAGE_SRC = '/images/device-size-img-1.png'
-const isMobile = typeof window !== 'undefined' && window.innerWidth < 991
 
-const videoSrc = isMobile ? '/videos/size-video-1-mobo.mp4' : '/videos/size-video.webm'
 const H2_WORDS_START = 0.08
 const H2_WORDS_END = 0.38
 
@@ -46,7 +37,7 @@ const ConnectorLine = ({ staggered, className }: { staggered?: boolean; classNam
       className
     )}
   >
-    <div className="absolute inset-0 bg-white/15"></div>
+    <div className="absolute inset-0 bg-white/15" />
     <div
       className={cn(
         'connector-shimmer-mask animate-connector-shimmer absolute inset-0 bg-white',
@@ -66,517 +57,414 @@ const DeviceSize = () => {
   const rootRef = useRef<HTMLElement>(null)
   const pinRef = useRef<HTMLDivElement>(null)
   const rightSlotRef = useRef<HTMLDivElement>(null)
-  const videoWrapRef = useRef<HTMLDivElement>(null)
+  const videoShellRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const imageRef = useRef<HTMLDivElement>(null)
+
   const blurRevealRef = useRef<BlurSlideRevealHandle>(null)
   const wordsRef = useRef<CopyWordsScrubHandle>(null)
-  const progressRef = useRef(0)
+
   const hasPlayedInViewRef = useRef(false)
-  const lastScrollYRef = useRef(0)
-  const isScrollingUpRef = useRef(false)
+  const isRunningSequenceRef = useRef(false)
+  const intersectionObserverRef = useRef<IntersectionObserver | null>(null)
 
   useGSAP(
     () => {
-      const layoutCache = {
-        startLeft: 0,
-        startTop: 0,
-        startW: 0,
-        startH: 0,
-        slotLeft: 0,
-        slotTop: 0,
-        slotW: 0,
-        slotH: 0,
-      }
-      const measureLayout = () => {
-        const pinEl = pinRef.current
-        const slotEl = rightSlotRef.current
-        if (!pinEl || !slotEl) return
-
-        const pr = pinEl.getBoundingClientRect()
-        const sr = slotEl.getBoundingClientRect()
-
-        if (pr.width < 1 || pr.height < 1 || sr.width < 1) return
-
-        layoutCache.slotLeft = sr.left - pr.left
-        layoutCache.slotTop = sr.top - pr.top
-        layoutCache.slotW = 745
-        layoutCache.slotH = sr.height
-
-        layoutCache.startW = Math.min(pr.width * 0.92, 1408)
-        layoutCache.startH = layoutCache.startW * (layoutCache.slotH / Math.max(layoutCache.slotW, 1))
-        layoutCache.startLeft = (pr.width - layoutCache.startW) / 2
-        layoutCache.startTop = (pr.height - layoutCache.startH) / 2
-      }
       const root = rootRef.current
       const pin = pinRef.current
       const slot = rightSlotRef.current
-      const wrap = videoWrapRef.current
+      const shell = videoShellRef.current
       const video = videoRef.current
       const image = imageRef.current
 
-      if (!root || !pin || !slot || !wrap || !video || !image) return
-      const warmupVideo = () => {
-        video.preload = 'auto'
-        video.load()
-        const onResize = () => {
-          measureLayout()
-          applyProgress(progressRef.current)
-        }
-        const playPromise = video.play()
+      if (!root || !pin || !slot || !shell || !video || !image) return
 
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              video.pause()
-              video.currentTime = 0
-            })
-            .catch(() => {
-              video.pause()
-              video.currentTime = 0
-            })
-        }
+      const mm = gsap.matchMedia()
+      let sequenceTl: gsap.core.Timeline | null = null
+      let holdCall: gsap.core.Tween | null = null
+
+      const resetContent = () => {
+        wordsRef.current?.setProgress(0)
+        blurRevealRef.current?.setProgress(0)
+
+        gsap.set('.content-box-wrapper-size-matter', {
+          opacity: 0,
+          display: 'none',
+          pointerEvents: 'none',
+        })
       }
-      video.preload = 'auto'
-      video.load()
-      warmupVideo()
-      progressRef.current = 0
-      hasPlayedInViewRef.current = false
-      wordsRef.current?.setProgress(0)
-      blurRevealRef.current?.setProgress(0)
-      video.currentTime = 0
-      video.playbackRate = VIDEO_PLAYBACK_RATE
-      gsap.set(video, { opacity: 1, autoAlpha: 1 })
-      gsap.set(image, { autoAlpha: 0 })
-      gsap.set(videoWrapRef.current, {
-        force3D: true,
-      })
-      gsap.fromTo(
-        videoWrapRef.current,
-        { scale: 1 },
-        {
-          scale: 1.08,
-          duration: 6,
-          ease: 'none',
-        }
-      )
 
-      const applyVideoLayout = (p: number) => {
-        const isDesktop = window.innerWidth >= 1024
+      const showContent = () => {
+        gsap.set('.content-box-wrapper-size-matter', {
+          opacity: 1,
+          display: 'block',
+          pointerEvents: 'auto',
+        })
+      }
 
+      const buildMetrics = (isMobile: boolean) => {
         const pr = pin.getBoundingClientRect()
         const sr = slot.getBoundingClientRect()
 
-        if (pr.width < 1 || pr.height < 1 || sr.width < 1) return
-
-        const slotLeft = sr.left - pr.left
-        const slotTop = sr.top - pr.top
-        const slotW = 745
-        const slotH = sr.height
+        if (pr.width < 1 || pr.height < 1 || sr.width < 1 || sr.height < 1) return null
 
         const startW = Math.min(pr.width * 0.92, 1408)
-        const startH = startW * (slotH / Math.max(slotW, 1))
+        const startH = startW * (sr.height / Math.max(745, 1))
+
         const startLeft = (pr.width - startW) / 2
         const startTop = (pr.height - startH) / 2
 
-        /* MOBILE / TABLET */
-        if (!isDesktop) {
-          const pr = pin.getBoundingClientRect()
+        const targetW = 745
+        const targetH = sr.height
+        const targetLeft = sr.left - pr.left
+        const targetTop = sr.top - pr.top
 
-          const startY = (pr.height - wrap.offsetHeight) / 2
+        const startCenterX = startLeft + startW / 2
+        const startCenterY = startTop + startH / 2
+        const targetCenterX = targetLeft + targetW / 2
+        const targetCenterY = targetTop + targetH / 2
 
-          gsap.set(wrap, {
-            position: 'relative',
-            left: 0,
-            top: startY,
-            width: '100%',
-            // height: 'auto',
-            scale: 1,
-            zIndex: 1,
-            clearProps: 'top,left',
-          })
-          return
+        return {
+          startLeft,
+          startTop,
+          startW,
+          startH,
+          targetLeft,
+          targetTop,
+          targetW,
+          targetH,
+          deltaX: targetCenterX - startCenterX,
+          deltaY: targetCenterY - startCenterY,
+          scaleX: targetW / startW,
+          scaleY: targetH / startH,
         }
-
-        /* DESKTOP ANIMATION */
-
-        const raw = p < MOVE_START ? 0 : p >= MOVE_END ? 1 : segment01(p, MOVE_START, MOVE_END)
-
-        const u = gsap.parseEase('power4.out')(raw)
-
-        const left = gsap.utils.interpolate(startLeft, slotLeft, u)
-        const top = gsap.utils.interpolate(startTop, slotTop, u)
-        const w = gsap.utils.interpolate(startW, slotW, u)
-        const h = gsap.utils.interpolate(startH, slotH, u)
-
-        gsap.set(wrap, {
-          position: 'absolute',
-          left,
-          top,
-          width: w,
-          height: h,
-          zIndex: u < 1 ? 30 : 20,
-          force3D: true,
-          duration: 0.45,
-          ease: 'elastic.out(1,0.6)',
-        })
       }
 
-      const applyProgress = (p: number) => {
-        const nextProgress = gsap.utils.clamp(0, 1, p)
-        progressRef.current = nextProgress
+      const setupVariant = (isMobile: boolean) => {
+        const metrics = buildMetrics(isMobile)
+        if (!metrics) return
 
-        applyVideoLayout(nextProgress)
-
-        const revealProgress = segment01(nextProgress, MOVE_END, 1)
-        wordsRef.current?.setProgress(revealProgress)
-        blurRevealRef.current?.setProgress(revealProgress)
-      }
-
-      const moveState = { progress: 0 }
-      const revealState = { progress: 0 }
-      let moveTween: gsap.core.Tween | null = null
-      let revealTween: gsap.core.Tween | null = null
-      let holdTween: gsap.core.Tween | null = null
-      let crossfadeTimeline: gsap.core.Timeline | null = null
-      let hasStartedPostVideoAnimation = false
-              const moveY = window.innerHeight * 0.18
-
-      const runPostVideoAnimation = () => {
-        if (hasStartedPostVideoAnimation) return
-        hasStartedPostVideoAnimation = true
+        resetContent()
+        hasPlayedInViewRef.current = false
+        isRunningSequenceRef.current = false
 
         video.pause()
+        video.currentTime = 0
+        video.playbackRate = 1
+        video.preload = 'auto'
+        video.load()
 
-        moveTween?.kill()
-        revealTween?.kill()
-        holdTween?.kill()
-        crossfadeTimeline?.kill()
-        gsap.to(videoWrapRef.current, {
-          scale: 1,
-          duration: 0.5,
-          ease: 'power2.out',
+        gsap.set(video, {
+          opacity: 1,
+          autoAlpha: 1,
         })
-        // small cinematic hold
-        holdTween = gsap.delayedCall(CENTER_HOLD_DURATION, () => {
-           const mm = gsap.matchMedia()
 
-        mm.add('(min-width: 992px)', () => {
-          // MAGNETIC MOVE
-          moveTween = gsap.to(moveState, {
-            progress: MOVE_END,
-            duration: 1.25,
-            ease: 'power4.out',
-            overwrite: true,
-            onUpdate: () => applyProgress(moveState.progress),
+        gsap.set(image, {
+          autoAlpha: 0,
+        })
 
-            onComplete: () => {
-              // crossfade AFTER movement
-              crossfadeTimeline = gsap.timeline()
-
-              crossfadeTimeline.to(
-                video,
-                {
-                  opacity: 0,
-                  duration: 0.7,
-                  ease: 'power2.out',
-                },
-                0
-              )
-
-              crossfadeTimeline.to(
-                image,
-                {
-                  autoAlpha: 1,
-                  duration: 0.7,
-                  ease: 'power2.out',
-                },
-                0
-              )
-
-              // elastic settle
-              gsap.fromTo(
-                wrap,
-                { filter: 'blur(10px)' },
-                {
-                  filter: 'blur(0px)',
-                  duration: 0.8,
-                  ease: 'power2.out',
-                }
-              )
-              gsap.fromTo(
-                wrap,
-                { scale: 1.06 },
-                {
-                  scale: 1,
-                  duration: 0.6,
-                  ease: 'elastic.out(1,0.6)',
-                }
-              )
-              // start content reveal
-              revealTween = gsap.to(revealState, {
-                progress: 1,
-                duration: 1.6,
-                ease: 'power4.out',
-                overwrite: true,
-                onUpdate: () => {
-                  const next = MOVE_END + (1 - MOVE_END) * revealState.progress
-                  applyProgress(next)
-                },
-              })
-            },
+        if (isMobile) {
+          gsap.set(shell, {
+            position: 'relative',
+            left: 0,
+            top: 0,
+            width: '100%',
+            height: 'auto',
+            x: 0,
+            y: 0,
+            scaleX: 1,
+            scaleY: 1,
+            rotate: 0,
+            filter: 'blur(0px)',
+            force3D: true,
+            transformOrigin: '50% 50%',
+            willChange: 'transform,opacity',
           })
-        })
+        } else {
+          gsap.set(shell, {
+            position: 'absolute',
+            left: metrics.startLeft,
+            top: metrics.startTop,
+            width: metrics.startW,
+            height: metrics.startH,
+            x: 0,
+            y: 0,
+            scaleX: 1,
+            scaleY: 1,
+            rotate: 0,
+            filter: 'blur(0px)',
+            force3D: true,
+            transformOrigin: '50% 50%',
+            willChange: 'transform,opacity',
+          })
+        }
 
-        mm.add('(max-width: 991px)', () => {
-          crossfadeTimeline = gsap.timeline({
-            defaults: { ease: 'power3.out' },
+        const applyRevealProgress = (p: number) => {
+          const next = gsap.utils.clamp(0, 1, p)
+          wordsRef.current?.setProgress(next)
+          blurRevealRef.current?.setProgress(next)
+        }
 
-            onComplete: () => {
-              const tl = gsap.timeline()
+        const runPostVideoAnimation = () => {
+          if (isRunningSequenceRef.current) return
+          isRunningSequenceRef.current = true
 
-              /* STEP 1: move from center → natural top */
+          video.pause()
 
-              tl.to(wrap, {
-                top: 0,
-                duration: 1.1,
-                ease: 'power4.out',
+          holdCall?.kill()
+          sequenceTl?.kill()
+
+          holdCall = gsap.delayedCall(CENTER_HOLD_DURATION, () => {
+            if (isMobile) {
+              sequenceTl = gsap.timeline({
+                defaults: { ease: 'power3.out' },
               })
 
-              /* subtle magnetic settle */
+              sequenceTl.to(shell, {
+                y: 0,
+                scale: 0.98,
+                duration: 0.7,
+                force3D: true,
+              })
 
-              tl.to(
-                wrap,
-                {
-                  scale: 0.97,
-                  duration: 0.4,
-                  ease: 'elastic.out(1,0.6)',
-                },
-                '-=0.5'
-              )
-
-              /* STEP 2: crossfade AFTER move */
-
-              tl.to(
+              sequenceTl.to(
                 video,
                 {
-                  opacity: 0,
-                  duration: 0.6,
-                  ease: 'power2.out',
+                  autoAlpha: 0,
+                  duration: 0.5,
                 },
-                '-=0.2'
+                0.08
               )
 
-              tl.to(
+              sequenceTl.to(
                 image,
                 {
                   autoAlpha: 1,
-                  duration: 0.8,
-                  ease: 'power3.out',
+                  duration: 0.65,
                 },
-                '-=0.6'
+                0.08
               )
 
-              /* STEP 3: show + reveal content */
-
-              tl.to(
+              sequenceTl.to(
                 '.content-box-wrapper-size-matter',
                 {
                   opacity: 1,
-                  display: 'inline-block',
+                  display: 'block',
                   pointerEvents: 'auto',
-                  duration: 0.6,
-                  ease: 'power3.out',
+                  duration: 0.45,
                 },
-                '-=0.3'
+                0.28
               )
 
-              tl.to(
-                revealState,
+              sequenceTl.to(
+                { progress: 0 },
                 {
                   progress: 1,
-                  duration: 1.2,
+                  duration: 1.05,
                   ease: 'power3.out',
-                  onUpdate: () => {
-                    wordsRef.current?.setProgress(revealState.progress)
-                    blurRevealRef.current?.setProgress(revealState.progress)
+                  onUpdate() {
+                    applyRevealProgress(this.targets()[0].progress)
                   },
                 },
-                '-=0.3'
+                0.3
+              )
+            } else {
+              sequenceTl = gsap.timeline({
+                defaults: { ease: 'power3.out' },
+              })
+
+              sequenceTl.to(shell, {
+                x: metrics.deltaX,
+                y: metrics.deltaY,
+                scaleX: metrics.scaleX,
+                scaleY: metrics.scaleY,
+                duration: 0.92,
+                ease: 'expo.inOut',
+                force3D: true,
+              })
+
+              sequenceTl.to(
+                shell,
+                {
+                  y: metrics.deltaY,
+                  duration: 0.18,
+                  ease: 'back.out(1.04)',
+                  force3D: true,
+                },
+                0.92
               )
 
-              /* STEP 4: lock final state */
+              sequenceTl.to(
+                video,
+                {
+                  autoAlpha: 0,
+                  duration: 0.5,
+                },
+                0.34
+              )
 
-              tl.add(() => {
-                hasPlayedInViewRef.current = true
+              sequenceTl.to(
+                image,
+                {
+                  autoAlpha: 1,
+                  duration: 0.65,
+                },
+                0.34
+              )
 
-                wordsRef.current?.setProgress(1)
-                blurRevealRef.current?.setProgress(1)
+              sequenceTl.to(
+                '.content-box-wrapper-size-matter',
+                {
+                  opacity: 1,
+                  display: 'block',
+                  pointerEvents: 'auto',
+                  duration: 0.45,
+                },
+                0.46
+              )
 
-                gsap.set(video, { opacity: 0 })
-                gsap.set(image, { autoAlpha: 1 })
-
-                gsap.set(wrap, {
-                  top: 0,
-                  scale: 0.97,
-                })
-              })
-            },
+              sequenceTl.to(
+                { progress: 0 },
+                {
+                  progress: 1,
+                  duration: 1.15,
+                  ease: 'power3.out',
+                  onUpdate() {
+                    applyRevealProgress(this.targets()[0].progress)
+                  },
+                },
+                0.46
+              )
+            }
           })
+        }
 
-          /* STEP 1: cinematic crossfade */
+        const playSequence = () => {
+          if (hasPlayedInViewRef.current) return
+          hasPlayedInViewRef.current = true
 
-          crossfadeTimeline.fromTo(
-            video,
-            { opacity: 1 },
-            {
-              opacity: 0,
-              duration: 0.6,
-              ease: 'power2.out',
-            },
-            0
-          )
+          sequenceTl?.kill()
+          holdCall?.kill()
+          isRunningSequenceRef.current = false
 
-          crossfadeTimeline.fromTo(
-            image,
-            { autoAlpha: 0, scale: 1.05 },
-            {
-              autoAlpha: 1,
-              scale: 1,
-              duration: 0.9,
-              ease: 'power3.out',
-            },
-            0
-          )
+          resetContent()
 
-          /* cinematic blur → sharp */
+          gsap.set(video, { autoAlpha: 1 })
+          gsap.set(image, { autoAlpha: 0 })
 
-          crossfadeTimeline.fromTo(
-            wrap,
-            { filter: 'blur(12px)' },
-            {
+          if (!isMobile) {
+            gsap.set(shell, {
+              x: 0,
+              y: 0,
+              scaleX: 1,
+              scaleY: 1,
+              rotate: 0,
               filter: 'blur(0px)',
-            },
-            0
-          )
-        })
-        })
-      }
-      const playSequence = () => {
-        hasPlayedInViewRef.current = true
-        moveTween?.kill()
-        revealTween?.kill()
-        holdTween?.kill()
-        crossfadeTimeline?.kill()
-        crossfadeTimeline = null
-        hasStartedPostVideoAnimation = false
-        moveState.progress = 0
-        revealState.progress = 0
-        progressRef.current = 0
-        applyProgress(0)
-        video.currentTime = 0
-        video.playbackRate = VIDEO_PLAYBACK_RATE
-
-        const startPlayback = () => {
-          video.play().catch(() => runPostVideoAnimation())
-        }
-
-        if (video.readyState >= 3) {
-          startPlayback()
-        } else {
-          const onCanPlay = () => {
-            video.removeEventListener('canplay', onCanPlay)
-            startPlayback()
+            })
           }
-          video.addEventListener('canplay', onCanPlay)
-          video.load()
+
+          const startPlayback = () => {
+            video.play().catch(() => runPostVideoAnimation())
+          }
+
+          if (video.readyState >= 3) {
+            startPlayback()
+          } else {
+            const onCanPlay = () => {
+              video.removeEventListener('canplay', onCanPlay)
+              startPlayback()
+            }
+            video.addEventListener('canplay', onCanPlay)
+          }
+
+          const onEnded = () => runPostVideoAnimation()
+          video.addEventListener('ended', onEnded, { once: true })
         }
 
-        gsap.set(video, { opacity: 1, autoAlpha: 1 })
-        gsap.set(image, { autoAlpha: 0 })
-        const onVideoEnded = () => runPostVideoAnimation()
-        video.addEventListener('ended', onVideoEnded, { once: true })
-        void video.play().catch(() => {
-          runPostVideoAnimation()
-        })
-      }
+        intersectionObserverRef.current?.disconnect()
 
-      lastScrollYRef.current = window.scrollY
-      const onScroll = () => {
-        const currentY = window.scrollY
-        isScrollingUpRef.current = currentY < lastScrollYRef.current
-        lastScrollYRef.current = currentY
-      }
+        intersectionObserverRef.current = new IntersectionObserver(
+          (entries) => {
+            const entry = entries[0]
+            if (!entry) return
 
-      const observer = new IntersectionObserver(
-        (entries) => {
-          const entry = entries[0]
-          if (!entry) return
+            if (entry.isIntersecting) {
+              if (!hasPlayedInViewRef.current) {
+                playSequence()
+              } else {
+                showContent()
+                applyRevealProgress(1)
+                gsap.set(video, { autoAlpha: 0 })
+                gsap.set(image, { autoAlpha: 1 })
+              }
+            }
+          },
+          {
+            rootMargin: '0px 0px -25% 0px',
+            threshold: 0.12,
+          }
+        )
 
-          // if (entry.isIntersecting) {
-          //   if (!hasPlayedInViewRef.current) {
-          //     playSequence()
-          //   } else {
-              
-          //     wordsRef.current?.setProgress(1)
-          //     blurRevealRef.current?.setProgress(1)
+        intersectionObserverRef.current.observe(root)
 
-          //     gsap.set(video, { opacity: 0 })
-          //     gsap.set(image, { autoAlpha: 1 })
-          //   }
-          // }
-           if (entry.isIntersecting) {
-            if (!hasPlayedInViewRef.current) {
-               playSequence()
-             } else {
-               // keep final state
-                   wordsRef.current?.setProgress(1)
-                   blurRevealRef.current?.setProgress(1)
+        const onResize = () => {
+          const nextMetrics = buildMetrics(isMobile)
+          if (!nextMetrics || isMobile) return
 
-               gsap.set(video, { opacity: 0 })
-               gsap.set(image, { autoAlpha: 1 })
-               gsap.set('.content-box-wrapper-size-matter', {
-                 opacity: 1,
-                 display: 'inline-block',
-                 pointerEvents: 'auto',
-               })
-             }
-           }
-
-          // NO reset logic at all
-        },
-        {
-          rootMargin: '0px 0px -25% 0px',
-          threshold: 0.1,
+          if (hasPlayedInViewRef.current) {
+            gsap.set(shell, {
+              left: nextMetrics.startLeft,
+              top: nextMetrics.startTop,
+              width: nextMetrics.startW,
+              height: nextMetrics.startH,
+              x: nextMetrics.deltaX,
+              y: nextMetrics.deltaY,
+              scaleX: nextMetrics.scaleX,
+              scaleY: nextMetrics.scaleY,
+            })
+          } else {
+            gsap.set(shell, {
+              left: nextMetrics.startLeft,
+              top: nextMetrics.startTop,
+              width: nextMetrics.startW,
+              height: nextMetrics.startH,
+              x: 0,
+              y: 0,
+              scaleX: 1,
+              scaleY: 1,
+            })
+          }
         }
-      )
 
-      applyProgress(0)
-      observer.observe(root)
-      window.addEventListener('scroll', onScroll, { passive: true })
+        window.addEventListener('resize', onResize)
 
-      const onResize = () => applyProgress(progressRef.current)
-      window.addEventListener('resize', onResize)
+        return () => {
+          window.removeEventListener('resize', onResize)
+          intersectionObserverRef.current?.disconnect()
+          sequenceTl?.kill()
+          holdCall?.kill()
+          video.pause()
+        }
+      }
+
+      mm.add('(max-width: 991px)', () => setupVariant(true))
+      mm.add('(min-width: 992px)', () => setupVariant(false))
 
       return () => {
-        moveTween?.kill()
-        revealTween?.kill()
-        holdTween?.kill()
-        crossfadeTimeline?.kill()
-        hasStartedPostVideoAnimation = false
+        mm.revert()
+        intersectionObserverRef.current?.disconnect()
+        sequenceTl?.kill()
+        holdCall?.kill()
         video.pause()
-        observer.disconnect()
-        window.removeEventListener('scroll', onScroll)
-        window.removeEventListener('resize', onResize)
       }
     },
-    { scope: rootRef, dependencies: [] }
+    { scope: rootRef }
   )
 
   return (
     <section ref={rootRef} className="relative">
       <div ref={pinRef} className="wrapper relative flex min-h-svh flex-col-reverse justify-center py-10">
-        <div className="">
+        <div>
           <div className="content-box-wrapper-size-matter relative z-10 order-2 mb-4 hidden opacity-0 sm:mb-6 lg:order-1 lg:mb-0 xl:mb-[43px]">
             <CopyWordsScrub ref={wordsRef} segment={{ start: H2_WORDS_START, end: H2_WORDS_END }}>
               <h2 className="font-sf-pro text-[28px] leading-[128%] font-medium tracking-[-2%] text-white sm:text-[48px] xl:text-[72px]">
@@ -585,7 +473,7 @@ const DeviceSize = () => {
             </CopyWordsScrub>
           </div>
 
-          <div className="content-box-wrapper-size-matter contents hidden opacity-0 lg:relative lg:order-2 lg:grid lg:grid-cols-[350px_1fr] lg:items-center lg:opacity-100 xl:grid-cols-[428px_1fr] xl:gap-20">
+          <div className="content-box-wrapper-size-matter contents hidden opacity-0 lg:relative lg:order-2 lg:grid lg:grid-cols-[350px_1fr] lg:items-center xl:grid-cols-[428px_1fr] xl:gap-20">
             <BlurSlideReveal
               ref={blurRevealRef}
               mode="controlled"
@@ -598,7 +486,7 @@ const DeviceSize = () => {
                 Flexibility for your needs
               </p>
 
-              <div className="relative rounded-[8px] bg-[linear-gradient(112.82deg,#3C98EE_-5.87%,#0D3459_7.76%)] p-px blur-[24] will-change-[transform,opacity,filter]">
+              <div className="relative rounded-[8px] bg-[linear-gradient(112.82deg,#3C98EE_-5.87%,#0D3459_7.76%)] p-px will-change-[transform,opacity,filter]">
                 <div className="h-full rounded-[8px] bg-black p-px">
                   <div className="h-full bg-white/8 p-6">
                     <h3 className="text-size-primary mb-[11px] text-[36px] leading-[128%] font-normal tracking-[-2%]">
@@ -614,7 +502,7 @@ const DeviceSize = () => {
                 <ConnectorLine className="desktop:w-[220px] top-[200px] xl:top-1/2 xl:w-[138px]" />
               </div>
 
-              <div className="relative rounded-[8px] bg-[linear-gradient(112.82deg,#3C98EE_-5.87%,#0D3459_7.76%)] p-px blur-[24] will-change-[transform,opacity,filter]">
+              <div className="relative rounded-[8px] bg-[linear-gradient(112.82deg,#3C98EE_-5.87%,#0D3459_7.76%)] p-px will-change-[transform,opacity,filter]">
                 <div className="h-full rounded-[8px] bg-black p-px">
                   <div className="h-full bg-white/8 p-6">
                     <h3 className="text-size-primary mb-[11px] text-[64px] leading-[128%] font-normal tracking-[-2%]">
@@ -642,24 +530,23 @@ const DeviceSize = () => {
         </div>
 
         <div
-          ref={videoWrapRef}
-          className="pointer-events-none relative order-1 mx-auto mb-6 w-full overflow-hidden rounded-sm will-change-transform lg:absolute lg:top-0 lg:left-0 lg:h-full lg:w-full"
+          ref={videoShellRef}
+          className="pointer-events-none relative order-1 mx-auto mb-6 w-full overflow-hidden rounded-sm will-change-transform lg:absolute lg:left-0 lg:top-0"
           aria-hidden
         >
           <video
             ref={videoRef}
-            // src={videoSrc}
             className="block h-full w-full object-contain"
             muted
             playsInline
             preload="auto"
             disablePictureInPicture
-            // controlsList="nodownload"
             poster="./videos/size-video.jpg"
           >
             <source src="./videos/size-video-1-mobo.mp4" media="(max-width: 990px)" type="video/mp4" />
             <source src="./videos/size-video.webm" media="(min-width: 991px)" type="video/webm" />
           </video>
+
           <div ref={imageRef} className="absolute inset-0 md:top-10">
             <Image
               src={DEVICE_SIZE_IMAGE_SRC}
