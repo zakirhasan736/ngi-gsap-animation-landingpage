@@ -16,7 +16,7 @@ const SIZE_FRAME_COUNT = 272
 const SIZE_FRAMES = buildNumberedFrameUrls('/videos/size-video-img', SIZE_FRAME_COUNT, {
   prefix: 'ezgif-frame-',
   pad: 3,
-  extension: 'webp',
+  extension: 'jpg',
 })
 
 const ENTER_THRESHOLD = 0.54

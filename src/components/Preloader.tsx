@@ -37,63 +37,15 @@ const CARTRIDGE_FRAMES = buildNumberedFrameUrls('/videos/chemical-cartridge-vide
   extension: 'webp',
 })
 
-const PRELOAD_ASSET_URLS = [...SIZE_FRAMES, ...CARTRIDGE_FRAMES]
+// const PRELOAD_ASSET_URLS = [...SIZE_FRAMES, ...CARTRIDGE_FRAMES]
 
-const VIDEO_SOURCES = ['/videos/intro-video.webm', '/videos/device-pricing-circle.mp4']
+const VIDEO_SOURCES = ['/videos/intro-video.webm']
 
 const DEFAULT_TITLE = 'New Generation Instruments'
 
 const titleTypographyClass =
   'font-inter-tight text-left text-[18px] leading-[128%] tracking-[-0.02em] sm:text-[24px] md:text-[32px] whitespace-nowrap'
 
-const preloadImages = async (
-  urls: readonly string[],
-  onProgress: (loaded: number, total: number) => void,
-  signal: AbortSignal,
-  concurrency = 10
-) => {
-  if (!urls.length) {
-    onProgress(1, 1)
-    return
-  }
-
-  let loaded = 0
-  let cursor = 0
-  const total = urls.length
-
-  const loadOne = (src: string) =>
-    new Promise<void>((resolve) => {
-      if (signal.aborted) {
-        resolve()
-        return
-      }
-
-      const img = new Image()
-      img.decoding = 'async'
-
-      const done = () => {
-        loaded += 1
-        onProgress(loaded, total)
-        resolve()
-      }
-
-      img.onload = done
-      img.onerror = done
-      img.src = src
-    })
-
-  const worker = async () => {
-    while (!signal.aborted) {
-      const index = cursor
-      cursor += 1
-      if (index >= total) return
-      await loadOne(urls[index]!)
-    }
-  }
-
-  const workers = Array.from({ length: Math.min(concurrency, total) }, () => worker())
-  await Promise.all(workers)
-}
 
 const preloadVideos = async (sources: readonly string[], signal: AbortSignal) => {
   if (!sources.length) return
@@ -204,12 +156,12 @@ const Preloader = ({
 
     let frameId: number | null = null
     let minDurationDone = false
-    let imagesDone = false
+    // let imagesDone = false
     let videosDone = false
     let windowLoaded = false
 
     let timeRatio = 0
-    let imageRatio = 0
+    // let imageRatio = 0
 
     const syncProgress = () => {
       /**
@@ -220,10 +172,10 @@ const Preloader = ({
        * - all videos
        * - window load
        */
-      const combined = Math.min(timeRatio, imageRatio)
+      const combined = Math.min(timeRatio)
       setProgress(Math.round(clamp(combined, 0, 1) * 100))
 
-      if (minDurationDone && imagesDone && videosDone && windowLoaded) {
+      if (minDurationDone  && videosDone && windowLoaded) {
         setProgress(100)
         setHasFinishedLoading(true)
       }
@@ -237,26 +189,26 @@ const Preloader = ({
 
       syncProgress()
 
-      if (!minDurationDone || !imagesDone || !videosDone || !windowLoaded) {
+      if (!minDurationDone  || !windowLoaded) {
         frameId = requestAnimationFrame(tick)
       }
     }
 
     frameId = requestAnimationFrame(tick)
 
-    void preloadImages(
-      PRELOAD_ASSET_URLS,
-      (loaded, total) => {
-        imageRatio = clamp(loaded / total, 0, 1)
-        if (imageRatio >= 1) imagesDone = true
-        syncProgress()
-      },
-      controller.signal
-    ).catch(() => {
-      imagesDone = true
-      imageRatio = 1
-      syncProgress()
-    })
+    // void preloadImages(
+    //   PRELOAD_ASSET_URLS,
+    //   (loaded, total) => {
+    //     imageRatio = clamp(loaded / total, 0, 1)
+    //     if (imageRatio >= 1) imagesDone = true
+    //     syncProgress()
+    //   },
+    //   controller.signal
+    // ).catch(() => {
+    //   imagesDone = true
+    //   imageRatio = 1
+    //   syncProgress()
+    // })
 
     void preloadVideos(VIDEO_SOURCES, controller.signal)
       .then(() => {

@@ -12,161 +12,267 @@ const DevicePricing = () => {
   const benefits = ['Simple control', 'Compact hardware', 'Scalable']
 
   const sectionRef = useRef<HTMLElement>(null)
+
+  // left circle animation
+  const outerCircleRef = useRef<HTMLDivElement>(null)
+  const otherTextRef = useRef<HTMLParagraphElement>(null)
+  const ngiCircleRef = useRef<HTMLDivElement>(null)
+  const ngiTextRef = useRef<HTMLSpanElement>(null)
+
+  // right cards
   const otherCardRef = useRef<HTMLDivElement>(null)
   const ngiCardRef = useRef<HTMLDivElement>(null)
   const cardsStackRef = useRef<HTMLDivElement>(null)
-  const pricingVideoRef = useRef<HTMLVideoElement>(null)
-  const transitionPlayedRef = useRef(false)
-const isMobile = typeof window !== 'undefined' && window.innerWidth < 991
 
-const videoSrc = isMobile ? '/videos/device-pricing-circle-mobo.mp4' : '/videos/device-pricing-circle.mp4'
   useGSAP(
     () => {
       const section = sectionRef.current
+      const outerCircle = outerCircleRef.current
+      const otherText = otherTextRef.current
+      const ngiCircle = ngiCircleRef.current
+      const ngiText = ngiTextRef.current
       const otherCard = otherCardRef.current
       const ngiCard = ngiCardRef.current
       const stack = cardsStackRef.current
-      if (!section || !otherCard || !ngiCard || !stack) return
-      gsap.to(pricingVideoRef.current, {
-        y: 30,
-        scale: 1.08,
-        ease: 'none',
-        scrollTrigger: {
-          trigger: sectionRef.current,
-          start: 'top top',
-          end: '+=250%',
-          scrub: 3,
-        },
-      })
-      const video = pricingVideoRef.current
 
-      if (!video) return
+      if (!section || !outerCircle || !otherText || !ngiCircle || !ngiText || !otherCard || !ngiCard || !stack) {
+        return
+      }
 
-      video.pause()
+      const mm = gsap.matchMedia()
 
-      let duration = 7
+      const setup = (isMobile: boolean) => {
+        const OUTER_FINAL = isMobile ? 320 : 576
+        const OUTER_START = isMobile ? 44 : 72
+        const OUTER_MID = OUTER_FINAL * 0.74
 
-      video.addEventListener('loadedmetadata', () => {
-        duration = video.duration || 7
-      })
-      gsap.set(video, {
-        willChange: 'transform',
-        force3D: true,
-      })
+        const INNER_START = isMobile ? 3 : 4
+        const INNER_MID = isMobile ? 18 : 26
+        const INNER_FINAL = isMobile ? 72 : 72
 
-      const videoProxy = { time: 0 }
+        const OTHER_FROM_Y = isMobile ? 16 : 22
+        const OTHER_TO_Y = isMobile ? -150 : -215
 
-      const fps = 30
-      const frameDuration = 1 / fps
-
-      let lastFrame = -1
-
-      gsap.ticker.add(() => {
-        const frame = Math.floor(videoProxy.time / frameDuration)
-
-        if (frame !== lastFrame) {
-          video.currentTime = frame * frameDuration
-          lastFrame = frame
-        }
-      })
-
-      const master = gsap.timeline({
-        scrollTrigger: {
-          trigger: section,
-          start: 'top top',
-          end: '+=250%',
-          scrub: 3,
-          pin: true,
-          anticipatePin: 1,
-        },
-      })
-
-      /* VIDEO SCRUB */
-
-      master.to(videoProxy, {
-        time: duration,
-        ease: 'none',
-      })
-
-      master.eventCallback('onUpdate', () => {
-        const time = videoProxy.time
-        const travel = stack.offsetHeight
-
-        /* 0 → 3s */
-
-        if (time <= 3) {
-          const t = time / 3
-
-          gsap.set(otherCard, {
-            y: gsap.utils.interpolate(travel, 0, t),
-            autoAlpha: t,
-            scale: gsap.utils.interpolate(1.08, 1, t),
-          })
-
-          gsap.set(ngiCard, {
-            y: travel,
-            autoAlpha: 0,
-          })
+        const syncStackHeight = () => {
+          const maxCardHeight = Math.max(otherCard.offsetHeight, ngiCard.offsetHeight)
+          gsap.set(stack, { height: maxCardHeight })
         }
 
-        /* 3 → 5s */
+        syncStackHeight()
 
-        if (time > 3 && time <= 5) {
-          const t = (time - 3) / 2
+        // LEFT initial
+        gsap.set(outerCircle, {
+          width: OUTER_START,
+          height: OUTER_START,
+          borderRadius: '50%',
+          opacity: 0,
+        })
 
-          gsap.set(otherCard, {
-            y: gsap.utils.interpolate(0, -travel, t),
-            autoAlpha: 1 - t,
-          })
+        gsap.set(otherText, {
+          opacity: 0,
+          y: OTHER_FROM_Y,
+          scale: 0.3,
+          filter: 'blur(10px)',
+        })
 
-          gsap.set(ngiCard, {
-            y: gsap.utils.interpolate(travel, 0, t),
-            autoAlpha: t,
-            scale: gsap.utils.interpolate(1.08, 1, t),
-          })
-        }
+        gsap.set(ngiCircle, {
+          width: INNER_START,
+          height: INNER_START,
+          borderRadius: '50%',
+          opacity: 0,
+        })
 
-        /* 5 → 7s */
+        gsap.set(ngiText, {
+          opacity: 0,
+          scale: 0.3,
+          filter: 'blur(10px)',
+        })
 
-        if (time > 5) {
-          gsap.set(otherCard, {
-            y: -travel,
-            autoAlpha: 0,
-          })
+        // RIGHT initial
+        gsap.set(otherCard, {
+          y: 180,
+          autoAlpha: 0,
+          scale: 1.02,
+          zIndex: 20,
+        })
 
-          gsap.set(ngiCard, {
+        gsap.set(ngiCard, {
+          y: 180,
+          autoAlpha: 0,
+          scale: 1.02,
+          zIndex: 30,
+        })
+
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: section,
+            start: 'top top',
+            end: () => `+=${Math.round(window.innerHeight * (isMobile ? 3 : 3.3))}`,
+            scrub: isMobile ? 1 : 0.9,
+            pin: true,
+            anticipatePin: 1,
+            invalidateOnRefresh: true,
+          },
+        })
+
+        /**
+         * 0% -> 50%
+         * Left:
+         * - big dark circle grows
+         * - Other providers becomes centered and visible
+         *
+         * Right:
+         * - first card comes in
+         */
+        tl.to(
+          outerCircle,
+          {
+            width: OUTER_MID,
+            height: OUTER_MID,
+            duration: 0.5,
+            opacity: 1,
+            ease: 'power2.out',
+          },
+          0
+        )
+
+        tl.to(
+          otherText,
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            filter: 'blur(0px)',
+            duration: 0.34,
+            ease: 'power2.out',
+          },
+          0.14
+        )
+
+        tl.to(
+          otherCard,
+          {
             y: 0,
             autoAlpha: 1,
             scale: 1,
-          })
+            duration: 0.32,
+            ease: 'power2.out',
+          },
+          0.14
+        )
+
+        /**
+         * 50% -> 100%
+         * Left:
+         * - Other providers goes up but stays visible
+         * - NGI appears in middle
+         * - outer circle reaches full size
+         *
+         * Right:
+         * - first card leaves upward
+         * - second card comes from below
+         */
+        tl.to(
+          outerCircle,
+          {
+            width: OUTER_FINAL,
+            height: OUTER_FINAL,
+            duration: 0.45,
+            ease: 'expo.out',
+          },
+          0.56
+        )
+
+        tl.to(
+          otherText,
+          {
+            y: OTHER_TO_Y,
+            opacity: 1,
+            scale: 0.92,
+            filter: 'blur(0px)',
+            duration: 0.45,
+            ease: 'power2.inOut',
+          },
+          0.5
+        )
+
+        tl.to(
+          ngiCircle,
+          {
+            opacity: 1,
+            width: INNER_MID,
+            height: INNER_MID,
+            duration: 0.14,
+            ease: 'power2.out',
+          },
+          0.58
+        )
+
+        tl.to(
+          ngiCircle,
+          {
+            width: INNER_FINAL,
+            height: INNER_FINAL,
+            duration: 0.32,
+            ease: 'expo.out',
+          },
+          0.68
+        )
+
+        tl.to(
+          ngiText,
+          {
+            opacity: 1,
+            scale: 1,
+            filter: 'blur(0px)',
+            duration: 0.22,
+            ease: 'power2.out',
+          },
+          0.66
+        )
+
+        tl.to(
+          otherCard,
+          {
+            y: -ngiCard.offsetHeight * 1.2,
+            autoAlpha: 0,
+            scale: 0.98,
+            duration: 0.28,
+            ease: 'power2.inOut',
+          },
+          0.52
+        )
+
+        tl.to(
+          ngiCard,
+          {
+            y: 0,
+            autoAlpha: 1,
+            scale: 1,
+            duration: 0.34,
+            ease: 'power2.out',
+          },
+          0.62
+        )
+
+        const handleResize = () => {
+          syncStackHeight()
+          ScrollTrigger.refresh()
         }
-      })
-      const syncStackHeight = () => {
-        const maxCardHeight = Math.max(otherCard.offsetHeight, ngiCard.offsetHeight)
-        gsap.set(stack, { height: maxCardHeight })
+
+        window.addEventListener('resize', handleResize)
+
+        return () => {
+          window.removeEventListener('resize', handleResize)
+          tl.scrollTrigger?.kill()
+          tl.kill()
+        }
       }
 
-      const placeNgiBelowStack = () => {
-        gsap.set(ngiCard, { y: stack.offsetHeight })
-      }
+      mm.add('(max-width: 990px)', () => setup(true))
+      mm.add('(min-width: 991px)', () => setup(false))
 
-      syncStackHeight()
-      placeNgiBelowStack()
-      gsap.set(otherCard, { y: 40, autoAlpha: 0, zIndex: 20 })
-      gsap.set(ngiCard, { y: stack.offsetHeight, autoAlpha: 0, zIndex: 30 })
-
-      const handleResize = () => {
-        syncStackHeight()
-        if (transitionPlayedRef.current) return
-        placeNgiBelowStack()
-      }
-
-      window.addEventListener('resize', handleResize)
-
-      return () => {
-        // entryTrigger.kill()
-        window.removeEventListener('resize', handleResize)
-      }
+      return () => mm.revert()
     },
     { scope: sectionRef }
   )
@@ -177,26 +283,38 @@ const videoSrc = isMobile ? '/videos/device-pricing-circle-mobo.mp4' : '/videos/
       className="wrapper relative z-20 flex items-center justify-center pb-40 sm:min-h-svh sm:pb-20 lg:pb-0"
     >
       <div className="grid h-full grid-cols-1 gap-[50px] sm:pt-20 lg:grid-cols-2 xl:gap-[100px]">
-        {/* left video */}
-        <div className="h-[300px] w-[300px] sm:h-[400px] sm:w-[400px] xl:h-[575px] xl:w-[575px]">
-          <video
-            ref={pricingVideoRef}
-            // src={videoSrc}
-            muted
-            playsInline
-            preload="auto"
-            disablePictureInPicture
-            // controlsList="nodownload noplaybackrate"
-            className="h-full w-full object-cover"
-          >
-            <source src="./videos/device-pricing-circle-mobo.mp4" media="(max-width: 990px)" type="video/mp4" />
-            <source src="./videos/device-pricing-circle.mp4" media="(min-width: 991px)" type="video/mp4" />
-          </video>
+        {/* left circle animation */}
+        <div className="flex my-auto h-[300px] w-[300px] items-center justify-center sm:h-[400px] sm:w-[400px] xl:h-[575px] xl:w-[575px]">
+          <div className="relative flex h-full w-full items-center justify-center">
+            <div
+              ref={outerCircleRef}
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.08] bg-white/[0.09]"
+            />
+
+            <p
+              ref={otherTextRef}
+              className="font-inter pointer-events-none absolute top-1/2 left-1/2 z-20 -translate-x-1/2 -translate-y-1/2 text-center text-[14px] font-extralight tracking-[-0.02em] whitespace-nowrap text-white/88 opacity-95 sm:text-[18px] xl:text-[28px]"
+            >
+              Other providers
+            </p>
+
+            <div
+              ref={ngiCircleRef}
+              className="absolute top-1/2 left-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#3E8EE8] shadow-[0_0_28px_rgba(62,142,232,0.16)]"
+            >
+              <span
+                ref={ngiTextRef}
+                className="font-sf-pro text-[12px] leading-none font-medium tracking-[-0.04em] text-white sm:text-[18px] xl:text-[35px]"
+              >
+                ngi
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* right content */}
-        <div ref={cardsStackRef} className="relative mx-auto w-full max-w-[535px] overflow-hidden sm:overflow-visible">
-          {/* other providers */}
+        <div ref={cardsStackRef} className="relative my-auto mx-auto w-full max-w-[535px] overflow-hidden sm:overflow-visible">
+          {/* first card */}
           <div
             ref={otherCardRef}
             className="absolute inset-x-0 top-0 z-20 w-full overflow-hidden rounded-[20px] border border-white/15 bg-white/8 px-6 py-6 text-white sm:px-10 sm:py-8 md:px-14 md:py-10"
@@ -213,7 +331,7 @@ const videoSrc = isMobile ? '/videos/device-pricing-circle-mobo.mp4' : '/videos/
               <ul className="ml-6 flex max-w-[240px] flex-col gap-4 sm:mx-auto sm:ml-0">
                 {disadvantages.map((item) => (
                   <li key={item} className="flex items-center gap-3 text-[16px] text-white sm:text-[20px]">
-                    <span className="h-2.5 w-2.5 rounded-full bg-white/45"></span>
+                    <span className="h-2.5 w-2.5 rounded-full bg-white/45" />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -221,7 +339,7 @@ const videoSrc = isMobile ? '/videos/device-pricing-circle-mobo.mp4' : '/videos/
             </div>
           </div>
 
-          {/* ngi */}
+          {/* second card */}
           <div
             ref={ngiCardRef}
             className="absolute inset-x-0 top-0 z-10 w-full overflow-hidden rounded-[20px] bg-[linear-gradient(114deg,#1F5A93_0%,#5AA9FF_100%)] px-6 py-8 text-white sm:px-10 sm:py-10 md:px-14 md:py-12"
@@ -241,7 +359,7 @@ const videoSrc = isMobile ? '/videos/device-pricing-circle-mobo.mp4' : '/videos/
                 {benefits.map((item) => (
                   <li key={item} className="flex items-center gap-3 text-[18px] font-normal text-white sm:text-[22px]">
                     <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/70">
-                      <span className="h-2.5 w-2.5 rounded-full bg-white"></span>
+                      <span className="h-2.5 w-2.5 rounded-full bg-white" />
                     </span>
                     <span>{item}</span>
                   </li>
