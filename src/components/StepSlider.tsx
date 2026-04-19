@@ -98,7 +98,7 @@ export const StepSlider = () => {
                   </Copy>
 
                   <BlurSlideReveal
-                    start="top 94%"
+                    start="85% 94%"
                     scrub={0.35}
                     y={26}
                     blurPx={4}
@@ -112,7 +112,7 @@ export const StepSlider = () => {
                   </BlurSlideReveal>
 
                   <BlurSlideReveal
-                    start="top 96%"
+                    start="85% 96%"
                     scrub={0.35}
                     y={22}
                     blurPx={3}

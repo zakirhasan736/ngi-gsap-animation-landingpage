@@ -42,16 +42,16 @@ const DevicePricing = () => {
       const mm = gsap.matchMedia()
 
       const setup = (isMobile: boolean) => {
-        const OUTER_FINAL = isMobile ? 320 : 576
+        const OUTER_FINAL = isMobile ? 280 : 576
         const OUTER_START = isMobile ? 44 : 72
         const OUTER_MID = OUTER_FINAL * 0.74
 
         const INNER_START = isMobile ? 3 : 4
         const INNER_MID = isMobile ? 18 : 26
-        const INNER_FINAL = isMobile ? 72 : 72
+        const INNER_FINAL = isMobile ? 42 : 72
 
         const OTHER_FROM_Y = isMobile ? 16 : 22
-        const OTHER_TO_Y = isMobile ? -150 : -215
+        const OTHER_TO_Y = isMobile ? -90 : -215
 
         const syncStackHeight = () => {
           const maxCardHeight = Math.max(otherCard.offsetHeight, ngiCard.offsetHeight)
@@ -304,7 +304,7 @@ const DevicePricing = () => {
             >
               <span
                 ref={ngiTextRef}
-                className="font-sf-pro text-[12px] leading-none font-medium tracking-[-0.04em] text-white sm:text-[18px] xl:text-[35px]"
+                className="font-sf-pro text-[12px] leading-none font-medium tracking-[-0.04em] text-white sm:text-[22px] xl:text-[35px]"
               >
                 ngi
               </span>
