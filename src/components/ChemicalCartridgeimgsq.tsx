@@ -18,9 +18,6 @@ const CARTRIDGE_FRAMES = buildNumberedFrameUrls('/videos/chemical-cartridge-vide
   extension: 'png',
 })
 
-/**
- * Smaller threshold gap = reverse starts sooner on scroll up
- */
 const ENTER_THRESHOLD = 0.54
 const EXIT_THRESHOLD = 0.5
 
@@ -46,8 +43,8 @@ const ChemicalCartridgeimgsq = () => {
   const isExpandedRef = useRef(false)
 
   const { drawFrame } = useImageSequencePlayer(canvasRef, CARTRIDGE_FRAMES, {
-    windowRadius: 12,
-    maxCache: 48,
+    windowRadius: 14,
+    maxCache: 90,
     layoutSizeCssRef: canvasLayoutCssRef,
   })
 
@@ -79,7 +76,7 @@ const ChemicalCartridgeimgsq = () => {
           transformOrigin: '50% 50%',
           transformPerspective: 1000,
           force3D: true,
-          willChange: 'transform,left,top,width,height,border-radius,filter',
+          willChange: 'transform,left,top,width,height,border-radius',
           backfaceVisibility: 'hidden',
         })
 
@@ -158,12 +155,14 @@ const ChemicalCartridgeimgsq = () => {
           currentProgress: 0,
           targetFrame: 0,
           renderedFrame: 0,
+          lastDrawnFrame: -1,
           rafId: 0 as number | 0,
+          ticking: false,
         }
 
-        const STEP_SIZE = isMobile ? 6 : 8
-        const PROGRESS_LERP = isMobile ? 0.09 : 0.075
-        const FRAME_LERP = isMobile ? 0.14 : 0.12
+        const STEP_SIZE = isMobile ? 2 : 1
+        const PROGRESS_LERP = isMobile ? 0.12 : 0.095
+        const FRAME_LERP = isMobile ? 0.2 : 0.16
 
         const ensureMetrics = () => {
           metricsRef.current = buildMetrics(isMobile)
@@ -176,6 +175,13 @@ const ChemicalCartridgeimgsq = () => {
           }
 
           return m
+        }
+
+        const drawIfNeeded = (frame: number) => {
+          const clamped = Math.max(0, Math.min(lastFrame, Math.round(frame)))
+          if (clamped === frameState.lastDrawnFrame) return
+          frameState.lastDrawnFrame = clamped
+          drawFrame(clamped)
         }
 
         const setCanvasToStart = () => {
@@ -248,14 +254,7 @@ const ChemicalCartridgeimgsq = () => {
             0.66
           )
 
-          tl.to(
-            content,
-            {
-              opacity: 1,
-              duration: 0.01,
-            },
-            0.24
-          )
+          tl.to(content, { opacity: 1, duration: 0.01 }, 0.24)
 
           tl.to(
             title,
@@ -288,14 +287,21 @@ const ChemicalCartridgeimgsq = () => {
           const normalized = gsap.utils.clamp(0, 1, progress / ENTER_THRESHOLD)
           const eased = gsap.parseEase('power1.inOut')(normalized)
           const rawFrame = eased * lastFrame
-
           frameState.targetFrame = Math.min(lastFrame, Math.round(rawFrame / STEP_SIZE) * STEP_SIZE)
+        }
+
+        const stopTick = () => {
+          frameState.ticking = false
+          if (frameState.rafId) {
+            cancelAnimationFrame(frameState.rafId)
+            frameState.rafId = 0
+          }
         }
 
         const tickFrames = () => {
           frameState.currentProgress += (frameState.targetProgress - frameState.currentProgress) * PROGRESS_LERP
 
-          if (Math.abs(frameState.targetProgress - frameState.currentProgress) < 0.0003) {
+          if (Math.abs(frameState.targetProgress - frameState.currentProgress) < 0.0005) {
             frameState.currentProgress = frameState.targetProgress
           }
 
@@ -307,12 +313,28 @@ const ChemicalCartridgeimgsq = () => {
             frameState.renderedFrame = frameState.targetFrame
           }
 
-          drawFrame(frameState.renderedFrame)
+          drawIfNeeded(frameState.renderedFrame)
+
+          const stillMoving =
+            Math.abs(frameState.targetProgress - frameState.currentProgress) > 0.001 ||
+            Math.abs(frameState.targetFrame - frameState.renderedFrame) > 0.12
+
+          if (stillMoving) {
+            frameState.rafId = window.requestAnimationFrame(tickFrames)
+          } else {
+            stopTick()
+          }
+        }
+
+        const startTick = () => {
+          if (frameState.ticking) return
+          frameState.ticking = true
           frameState.rafId = window.requestAnimationFrame(tickFrames)
         }
 
         const applyFrameProgress = (progress: number) => {
           frameState.targetProgress = progress
+          startTick()
         }
 
         setCanvasToStart()
@@ -322,9 +344,7 @@ const ChemicalCartridgeimgsq = () => {
         frameState.currentProgress = 0
         frameState.targetFrame = 0
         frameState.renderedFrame = 0
-        drawFrame(0)
-
-        frameState.rafId = window.requestAnimationFrame(tickFrames)
+        drawIfNeeded(0)
 
         let st: ScrollTrigger
 
@@ -334,7 +354,7 @@ const ChemicalCartridgeimgsq = () => {
           end: () => `+=${Math.round(window.innerHeight * (isMobile ? 2.85 : 3.5))}`,
           pin,
           pinSpacing: true,
-          scrub: isMobile ? 0.55 : 0.42,
+          scrub: isMobile ? 0.4 : 0.3,
           anticipatePin: 1,
           fastScrollEnd: true,
           invalidateOnRefresh: true,
@@ -342,7 +362,6 @@ const ChemicalCartridgeimgsq = () => {
             const tl = transitionTlRef.current
             if (!tl) return
 
-            // reverse sooner on scroll up
             if (self.progress < EXIT_THRESHOLD) {
               applyFrameProgress(self.progress)
 
@@ -352,22 +371,19 @@ const ChemicalCartridgeimgsq = () => {
               } else if (tl.progress() > 0 && !tl.isActive()) {
                 tl.progress(0)
               }
-
               return
             }
 
-            // very small buffer zone
             if (self.progress >= EXIT_THRESHOLD && self.progress < ENTER_THRESHOLD) {
-              if (!isExpandedRef.current) {
-                applyFrameProgress(self.progress)
-              }
+              if (!isExpandedRef.current) applyFrameProgress(self.progress)
               return
             }
 
             frameState.targetProgress = ENTER_THRESHOLD
+            frameState.currentProgress = ENTER_THRESHOLD
             frameState.targetFrame = lastFrame
             frameState.renderedFrame = lastFrame
-            drawFrame(lastFrame)
+            drawIfNeeded(lastFrame)
 
             if (!isExpandedRef.current) {
               isExpandedRef.current = true
@@ -386,11 +402,15 @@ const ChemicalCartridgeimgsq = () => {
               frameState.currentProgress = ENTER_THRESHOLD
               frameState.targetFrame = lastFrame
               frameState.renderedFrame = lastFrame
-              drawFrame(lastFrame)
+              drawIfNeeded(lastFrame)
               transitionTlRef.current?.progress(1)
             } else {
               setCanvasToStart()
               frameState.targetProgress = self.progress
+              frameState.currentProgress = self.progress
+              updateTargetsFromProgress(self.progress)
+              frameState.renderedFrame = frameState.targetFrame
+              drawIfNeeded(frameState.renderedFrame)
             }
           },
         })
@@ -404,11 +424,15 @@ const ChemicalCartridgeimgsq = () => {
             frameState.currentProgress = ENTER_THRESHOLD
             frameState.targetFrame = lastFrame
             frameState.renderedFrame = lastFrame
-            drawFrame(lastFrame)
+            drawIfNeeded(lastFrame)
             transitionTlRef.current?.progress(1)
           } else {
             setCanvasToStart()
             frameState.targetProgress = st.progress
+            frameState.currentProgress = st.progress
+            updateTargetsFromProgress(st.progress)
+            frameState.renderedFrame = frameState.targetFrame
+            drawIfNeeded(frameState.renderedFrame)
           }
         }
 
@@ -417,25 +441,12 @@ const ChemicalCartridgeimgsq = () => {
         requestAnimationFrame(() => {
           ensureMetrics()
           buildTransitionTimeline()
-
-          if (isExpandedRef.current) {
-            frameState.targetProgress = ENTER_THRESHOLD
-            frameState.currentProgress = ENTER_THRESHOLD
-            frameState.targetFrame = lastFrame
-            frameState.renderedFrame = lastFrame
-            drawFrame(lastFrame)
-            transitionTlRef.current?.progress(1)
-          } else {
-            setCanvasToStart()
-            frameState.targetProgress = st.progress
-          }
-
           ScrollTrigger.refresh()
         })
 
         return () => {
           window.removeEventListener('resize', onResize)
-          if (frameState.rafId) window.cancelAnimationFrame(frameState.rafId)
+          stopTick()
           transitionTlRef.current?.kill()
           st.kill()
         }
