@@ -27,6 +27,7 @@ const Home = () => {
         <FeatureShowCaseSlider />
       </HeaderLightZone>
       <ChemicalCartridgeimgsq />
+      {/* <ChemicalCartridgeVideo /> */}
       <DeviceSizeimgsq />
       <HeaderLightZone>
         <SideBySideBanner />

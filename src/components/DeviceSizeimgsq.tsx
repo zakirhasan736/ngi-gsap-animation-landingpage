@@ -7,11 +7,11 @@ import { cn } from '@/utils/cn'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 gsap.registerPlugin(ScrollTrigger)
 
-const SIZE_FRAME_COUNT = 272
+const SIZE_FRAME_COUNT = 121
 
 const SIZE_FRAMES = buildNumberedFrameUrls('/videos/size-video-img', SIZE_FRAME_COUNT, {
   prefix: 'ezgif-frame-',
@@ -21,6 +21,13 @@ const SIZE_FRAMES = buildNumberedFrameUrls('/videos/size-video-img', SIZE_FRAME_
 
 const ENTER_THRESHOLD = 0.54
 const EXIT_THRESHOLD = 0.5
+
+/**
+ * Important:
+ * Reverse starts almost immediately when user scrolls up from the completed pinned area.
+ * This removes the 4-5 mouse-wheel dead scroll issue.
+ */
+const REVERSE_TRIGGER = 0.535
 
 const LEFT_BLUR_SEGMENTS = [
   { start: 0.16, end: 0.52, y: 28, blurPx: 12 },
@@ -37,12 +44,14 @@ const ConnectorLine = ({ staggered, className }: { staggered?: boolean; classNam
     )}
   >
     <div className="absolute inset-0 bg-white/15" />
+
     <div
       className={cn(
         'connector-shimmer-mask animate-connector-shimmer absolute inset-0 bg-white',
         staggered && 'connector-shimmer-stagger'
       )}
     />
+
     <div
       className={cn(
         'connector-shimmer-mask animate-connector-shimmer absolute inset-0 bg-white',
@@ -69,16 +78,154 @@ const DeviceSizeimgsq = () => {
 
   const canvasLayoutCssRef = useRef<{ w: number; h: number } | null>(null)
   const transitionTlRef = useRef<gsap.core.Timeline | null>(null)
-  const isExpandedRef = useRef(false)
 
-  const { drawFrame } = useImageSequencePlayer(canvasRef, SIZE_FRAMES, {
-    windowRadius: 14,
-    maxCache: 56,
-    layoutSizeCssRef: canvasLayoutCssRef,
-  })
+  const isExpandedRef = useRef(false)
+  const isTabHiddenRef = useRef(false)
+  const isSectionActiveRef = useRef(false)
+  const firstFrameDrawnRef = useRef(false)
+
+  const [isNearSection, setIsNearSection] = useState(false)
+
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsNearSection(true)
+          observer.disconnect()
+        }
+      },
+      {
+        root: null,
+        rootMargin: '2200px 0px 2200px 0px',
+        threshold: 0.01,
+      }
+    )
+
+    observer.observe(root)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      isTabHiddenRef.current = document.hidden
+
+      if (!document.hidden) {
+        requestAnimationFrame(() => {
+          ScrollTrigger.refresh()
+        })
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [])
+
+  const playerOptions = useMemo(
+    () => ({
+      windowRadius: isNearSection ? 14 : 1,
+      maxCache: isNearSection ? 56 : 3,
+      preloadAll: false,
+      preloadConcurrency: isNearSection ? 3 : 1,
+      maxDpr: 1.5,
+      layoutSizeCssRef: canvasLayoutCssRef,
+    }),
+    [isNearSection]
+  )
+
+  const { drawFrame } = useImageSequencePlayer(
+    canvasRef,
+    isNearSection ? SIZE_FRAMES : SIZE_FRAMES.slice(0, 1),
+    playerOptions
+  )
+
+  useEffect(() => {
+    const pin = pinRef.current
+    const slot = rightSlotRef.current
+    const wrap = canvasWrapRef.current
+
+    if (!pin || !slot || !wrap) return
+    if (firstFrameDrawnRef.current) return
+
+    let rafId = 0
+    let tries = 0
+
+    const drawInitialFrame = () => {
+      tries += 1
+
+      const pr = pin.getBoundingClientRect()
+      const sr = slot.getBoundingClientRect()
+
+      if (pr.width < 1 || pr.height < 1 || sr.width < 1 || sr.height < 1) {
+        if (tries < 60) {
+          rafId = requestAnimationFrame(drawInitialFrame)
+        }
+
+        return
+      }
+
+      const isMobile = window.innerWidth < 1024
+
+      const slotW = sr.width
+      const slotH = sr.height
+
+      const startScaleFactor = isMobile ? 0.92 : 0.75
+      const startW = Math.min(pr.width * startScaleFactor, 1408)
+      const startH = startW * (slotH / Math.max(slotW, 1))
+      const startLeft = (pr.width - startW) / 2
+      const startTop = (pr.height - startH) / 2
+
+      const maxCssW = Math.max(startW, slotW)
+      const maxCssH = Math.max(startH, slotH)
+
+      canvasLayoutCssRef.current = {
+        w: maxCssW,
+        h: maxCssH,
+      }
+
+      gsap.set(wrap, {
+        position: 'absolute',
+        left: startLeft,
+        top: startTop,
+        width: startW,
+        height: startH,
+        borderRadius: 10,
+        x: 0,
+        y: 0,
+        scaleX: 1,
+        scaleY: 1,
+        rotate: 0,
+        zIndex: 30,
+        opacity: 1,
+        force3D: true,
+        willChange: 'transform',
+        backfaceVisibility: 'hidden',
+        transformOrigin: '50% 50%',
+      })
+
+      drawFrame(0)
+      firstFrameDrawnRef.current = true
+    }
+
+    rafId = requestAnimationFrame(drawInitialFrame)
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId)
+    }
+  }, [drawFrame])
 
   useGSAP(
     () => {
+      if (!isNearSection) return
+
       const root = rootRef.current
       const pin = pinRef.current
       const slot = rightSlotRef.current
@@ -89,7 +236,9 @@ const DeviceSizeimgsq = () => {
       const card8 = card8Ref.current
       const card32 = card32Ref.current
 
-      if (!root || !pin || !slot || !wrap || !sectionTitle || !contentWrap || !flexText || !card8 || !card32) return
+      if (!root || !pin || !slot || !wrap || !sectionTitle || !contentWrap || !flexText || !card8 || !card32) {
+        return
+      }
 
       const mm = gsap.matchMedia()
       const lastFrame = SIZE_FRAME_COUNT - 1
@@ -99,22 +248,21 @@ const DeviceSizeimgsq = () => {
           position: 'absolute',
           x: 0,
           y: 0,
-          xPercent: 0,
-          yPercent: 0,
-          scale: 1,
+          scaleX: 1,
+          scaleY: 1,
           rotate: 0,
-          filter: 'blur(0px)',
+          filter: 'none',
           transformOrigin: '50% 50%',
           transformPerspective: 1000,
           force3D: true,
-          willChange: 'transform,left,top,width,height,border-radius,filter',
+          willChange: 'transform',
           backfaceVisibility: 'hidden',
         })
 
         gsap.set(sectionTitle, {
           opacity: 0,
-          y: 36,
-          filter: 'blur(14px)',
+          y: 32,
+          filter: 'blur(10px)',
           force3D: true,
           backfaceVisibility: 'hidden',
           willChange: 'transform,opacity,filter',
@@ -129,8 +277,8 @@ const DeviceSizeimgsq = () => {
 
         gsap.set(flexText, {
           opacity: 0,
-          y: 34,
-          filter: 'blur(14px)',
+          y: 30,
+          filter: 'blur(10px)',
           willChange: 'transform,opacity,filter',
           force3D: true,
           backfaceVisibility: 'hidden',
@@ -138,8 +286,8 @@ const DeviceSizeimgsq = () => {
 
         gsap.set(card8, {
           opacity: 0,
-          y: 38,
-          filter: 'blur(14px)',
+          y: 34,
+          filter: 'blur(10px)',
           willChange: 'transform,opacity,filter',
           force3D: true,
           backfaceVisibility: 'hidden',
@@ -147,8 +295,8 @@ const DeviceSizeimgsq = () => {
 
         gsap.set(card32, {
           opacity: 0,
-          y: 44,
-          filter: 'blur(16px)',
+          y: 38,
+          filter: 'blur(12px)',
           willChange: 'transform,opacity,filter',
           force3D: true,
           backfaceVisibility: 'hidden',
@@ -174,9 +322,6 @@ const DeviceSizeimgsq = () => {
         const startLeft = (pr.width - startW) / 2
         const startTop = (pr.height - startH) / 2
 
-        const maxCssW = Math.max(startW, slotW)
-        const maxCssH = Math.max(startH, slotH)
-
         return {
           slotLeft,
           slotTop,
@@ -186,13 +331,14 @@ const DeviceSizeimgsq = () => {
           startH,
           startLeft,
           startTop,
-          maxCssW,
-          maxCssH,
+          maxCssW: Math.max(startW, slotW),
+          maxCssH: Math.max(startH, slotH),
         }
       }
 
       const setupVariant = (isMobile: boolean) => {
         setBaseStates()
+
         isExpandedRef.current = false
         transitionTlRef.current?.kill()
         transitionTlRef.current = null
@@ -204,12 +350,14 @@ const DeviceSizeimgsq = () => {
           currentProgress: 0,
           targetFrame: 0,
           renderedFrame: 0,
+          lastDrawnFrame: -1,
           rafId: 0 as number | 0,
+          ticking: false,
         }
 
-        const STEP_SIZE = isMobile ? 8 : 10
-        const PROGRESS_LERP = isMobile ? 0.09 : 0.075
-        const FRAME_LERP = isMobile ? 0.14 : 0.12
+        const STEP_SIZE = isMobile ? 4 : 2
+        const PROGRESS_LERP = isMobile ? 0.2 : 0.14
+        const FRAME_LERP = isMobile ? 0.32 : 0.24
 
         const ensureMetrics = () => {
           metricsRef.current = buildMetrics(isMobile)
@@ -234,11 +382,32 @@ const DeviceSizeimgsq = () => {
             width: m.startW,
             height: m.startH,
             borderRadius: 10,
-            scale: 1,
-            rotate: 0,
+            x: 0,
             y: 0,
+            scaleX: 1,
+            scaleY: 1,
+            rotate: 0,
             zIndex: 30,
           })
+        }
+
+        const drawIfNeeded = (frame: number) => {
+          if (isTabHiddenRef.current) return
+          if (!isSectionActiveRef.current && frameState.lastDrawnFrame !== -1) return
+
+          const clamped = Math.max(0, Math.min(lastFrame, Math.round(frame)))
+
+          if (clamped === frameState.lastDrawnFrame) return
+
+          frameState.lastDrawnFrame = clamped
+          drawFrame(clamped)
+        }
+
+        const forceDrawFrame = (frame: number) => {
+          const wasActive = isSectionActiveRef.current
+          isSectionActiveRef.current = true
+          drawIfNeeded(frame)
+          isSectionActiveRef.current = wasActive
         }
 
         const buildTransitionTimeline = () => {
@@ -247,20 +416,63 @@ const DeviceSizeimgsq = () => {
           const m = ensureMetrics()
           if (!m) return
 
+          const startCenterX = m.startLeft + m.startW / 2
+          const startCenterY = m.startTop + m.startH / 2
+          const targetCenterX = m.slotLeft + m.slotW / 2
+          const targetCenterY = m.slotTop + m.slotH / 2
+
+          const deltaX = targetCenterX - startCenterX
+          const deltaY = targetCenterY - startCenterY
+
+          const scaleX = m.slotW / m.startW
+          const scaleY = m.slotH / m.startH
+
           const tl = gsap.timeline({
             paused: true,
             defaults: { ease: 'power3.out' },
             onUpdate: () => {
-              blurRevealRef.current?.setProgress(tl.progress())
+              if (!isTabHiddenRef.current) {
+                blurRevealRef.current?.setProgress(tl.progress())
+              }
             },
+            onStart: () => {
+              gsap.set([sectionTitle, contentWrap, flexText, card8, card32], {
+                willChange: 'transform,opacity,filter',
+              })
+            },
+            onComplete: () => {
+              gsap.set([sectionTitle, contentWrap, flexText, card8, card32], {
+                willChange: 'auto',
+              })
+            },
+            onReverseComplete: () => {
+              blurRevealRef.current?.setProgress(0)
+
+              gsap.set([sectionTitle, contentWrap, flexText, card8, card32], {
+                willChange: 'transform,opacity,filter',
+              })
+            },
+          })
+
+          gsap.set(wrap, {
+            x: 0,
+            y: 0,
+            scaleX: 1,
+            scaleY: 1,
+            rotate: 0,
           })
 
           tl.to(
             wrap,
             {
-              scale: isMobile ? 1 : 0.988,
-              duration: 0.12,
-              ease: 'power2.out',
+              x: deltaX,
+              y: deltaY - (isMobile ? 0 : 8),
+              scaleX,
+              scaleY,
+              rotate: isMobile ? 0 : -0.18,
+              duration: 0.76,
+              ease: 'expo.inOut',
+              force3D: true,
             },
             0
           )
@@ -268,40 +480,22 @@ const DeviceSizeimgsq = () => {
           tl.to(
             wrap,
             {
-              left: m.slotLeft,
-              top: m.slotTop - (isMobile ? 0 : 8),
-              width: m.slotW,
-              height: m.slotH,
-              borderRadius: 4,
-              rotate: isMobile ? 0 : -0.24,
-              y: isMobile ? 0 : -6,
-              duration: 0.78,
-              ease: 'expo.inOut',
-            },
-            0.05
-          )
-
-          tl.to(
-            wrap,
-            {
-              top: m.slotTop,
+              y: deltaY,
               rotate: 0,
-              y: 0,
-              scale: 1,
-              duration: 0.28,
-              ease: 'back.out(1.08)',
+              duration: 0.24,
+              ease: 'back.out(1.04)',
+              force3D: true,
             },
-            0.7
+            0.68
           )
 
-          // Title appears with the left content, not before
           tl.to(
             sectionTitle,
             {
               opacity: 1,
               y: 0,
               filter: 'blur(0px)',
-              duration: 0.7,
+              duration: 0.64,
               ease: 'power3.out',
             },
             0.18
@@ -322,7 +516,7 @@ const DeviceSizeimgsq = () => {
               opacity: 1,
               y: 0,
               filter: 'blur(0px)',
-              duration: 0.66,
+              duration: 0.6,
               ease: 'power3.out',
             },
             0.28
@@ -334,7 +528,7 @@ const DeviceSizeimgsq = () => {
               opacity: 1,
               y: 0,
               filter: 'blur(0px)',
-              duration: 0.76,
+              duration: 0.68,
               ease: 'power3.out',
             },
             0.38
@@ -346,7 +540,7 @@ const DeviceSizeimgsq = () => {
               opacity: 1,
               y: 0,
               filter: 'blur(0px)',
-              duration: 0.82,
+              duration: 0.74,
               ease: 'power3.out',
             },
             0.48
@@ -359,13 +553,28 @@ const DeviceSizeimgsq = () => {
           const normalized = gsap.utils.clamp(0, 1, progress / ENTER_THRESHOLD)
           const eased = gsap.parseEase('power1.inOut')(normalized)
           const rawFrame = eased * lastFrame
+
           frameState.targetFrame = Math.min(lastFrame, Math.round(rawFrame / STEP_SIZE) * STEP_SIZE)
         }
 
+        const stopTick = () => {
+          frameState.ticking = false
+
+          if (frameState.rafId) {
+            cancelAnimationFrame(frameState.rafId)
+            frameState.rafId = 0
+          }
+        }
+
         const tickFrames = () => {
+          if (isTabHiddenRef.current || !isSectionActiveRef.current) {
+            stopTick()
+            return
+          }
+
           frameState.currentProgress += (frameState.targetProgress - frameState.currentProgress) * PROGRESS_LERP
 
-          if (Math.abs(frameState.targetProgress - frameState.currentProgress) < 0.0003) {
+          if (Math.abs(frameState.targetProgress - frameState.currentProgress) < 0.0005) {
             frameState.currentProgress = frameState.targetProgress
           }
 
@@ -377,13 +586,57 @@ const DeviceSizeimgsq = () => {
             frameState.renderedFrame = frameState.targetFrame
           }
 
-          drawFrame(frameState.renderedFrame)
+          drawIfNeeded(frameState.renderedFrame)
 
-          frameState.rafId = window.requestAnimationFrame(tickFrames)
+          const stillMoving =
+            Math.abs(frameState.targetProgress - frameState.currentProgress) > 0.001 ||
+            Math.abs(frameState.targetFrame - frameState.renderedFrame) > 0.12
+
+          if (stillMoving) {
+            frameState.rafId = requestAnimationFrame(tickFrames)
+          } else {
+            stopTick()
+          }
+        }
+
+        const startTick = () => {
+          if (frameState.ticking) return
+          if (isTabHiddenRef.current) return
+          if (!isSectionActiveRef.current) return
+
+          frameState.ticking = true
+          frameState.rafId = requestAnimationFrame(tickFrames)
         }
 
         const applyFrameProgress = (progress: number) => {
           frameState.targetProgress = progress
+          startTick()
+        }
+
+        const lockToLastFrame = () => {
+          stopTick()
+
+          frameState.targetProgress = ENTER_THRESHOLD
+          frameState.currentProgress = ENTER_THRESHOLD
+          frameState.targetFrame = lastFrame
+          frameState.renderedFrame = lastFrame
+
+          forceDrawFrame(lastFrame)
+        }
+
+        const reverseExpandedTimeline = () => {
+          const tl = transitionTlRef.current
+          if (!tl) return
+          if (tl.progress() <= 0) return
+
+          isExpandedRef.current = false
+
+          gsap.set([sectionTitle, contentWrap, flexText, card8, card32], {
+            willChange: 'transform,opacity,filter',
+          })
+
+          lockToLastFrame()
+          tl.reverse()
         }
 
         setCanvasToStart()
@@ -393,32 +646,99 @@ const DeviceSizeimgsq = () => {
         frameState.currentProgress = 0
         frameState.targetFrame = 0
         frameState.renderedFrame = 0
-        drawFrame(0)
 
-        frameState.rafId = window.requestAnimationFrame(tickFrames)
+        forceDrawFrame(0)
 
-        let st: ScrollTrigger
-
-        st = ScrollTrigger.create({
+        const st = ScrollTrigger.create({
           trigger: root,
           start: 'top top',
-          end: () => `+=${Math.round(window.innerHeight * (isMobile ? 2.85 : 3.5))}`,
+
+          /**
+           * Slightly shorter than before.
+           * Less pinned dead space after the visual animation finishes.
+           */
+          end: () => `+=${Math.round(window.innerHeight * (isMobile ? 2.6 : 3.1))}`,
+
           pin,
           pinSpacing: true,
-          scrub: isMobile ? 0.55 : 0.42,
+          scrub: isMobile ? 0.32 : 0.24,
           anticipatePin: 1,
           fastScrollEnd: true,
           invalidateOnRefresh: true,
+
+          onEnter: () => {
+            isSectionActiveRef.current = true
+          },
+
+          onEnterBack: () => {
+            isSectionActiveRef.current = true
+
+            /**
+             * When user reaches this section from below,
+             * keep completed state ready, then reverse as soon as they scroll up.
+             */
+            if (transitionTlRef.current && st.progress > ENTER_THRESHOLD) {
+              lockToLastFrame()
+              transitionTlRef.current.progress(1)
+              isExpandedRef.current = true
+            }
+          },
+
+          onLeave: () => {
+            isSectionActiveRef.current = false
+            stopTick()
+
+            /**
+             * Finish cleanly when scrolling down fast.
+             */
+            if (transitionTlRef.current) {
+              lockToLastFrame()
+              transitionTlRef.current.progress(1)
+              isExpandedRef.current = true
+            }
+          },
+
+          onLeaveBack: () => {
+            isSectionActiveRef.current = false
+            stopTick()
+          },
+
           onUpdate: (self) => {
+            if (isTabHiddenRef.current) return
+
             const tl = transitionTlRef.current
             if (!tl) return
 
+            const isScrollingUp = self.direction === -1
+            const isScrollingDown = self.direction === 1
+
+            /**
+             * Main fix:
+             * If user scrolls up from the completed/pinned area,
+             * reverse immediately instead of waiting until EXIT_THRESHOLD.
+             */
+            if (isScrollingUp && isExpandedRef.current && self.progress < REVERSE_TRIGGER) {
+              reverseExpandedTimeline()
+              return
+            }
+
+            /**
+             * While timeline is reversing, keep the final frame stable until
+             * user reaches the frame-scrub zone.
+             */
+            if (isScrollingUp && tl.reversed() && tl.isActive() && self.progress > EXIT_THRESHOLD) {
+              lockToLastFrame()
+              return
+            }
+
+            /**
+             * Normal frame sequence zone.
+             */
             if (self.progress < EXIT_THRESHOLD) {
               applyFrameProgress(self.progress)
 
               if (isExpandedRef.current) {
-                isExpandedRef.current = false
-                tl.reverse()
+                reverseExpandedTimeline()
               } else if (tl.progress() > 0 && !tl.isActive()) {
                 tl.progress(0)
               }
@@ -426,85 +746,99 @@ const DeviceSizeimgsq = () => {
               return
             }
 
+            /**
+             * Small buffer between frame sequence and expanded state.
+             */
             if (self.progress >= EXIT_THRESHOLD && self.progress < ENTER_THRESHOLD) {
               if (!isExpandedRef.current) {
                 applyFrameProgress(self.progress)
               }
+
               return
             }
 
-            frameState.targetProgress = ENTER_THRESHOLD
-            frameState.targetFrame = lastFrame
-            frameState.renderedFrame = lastFrame
-            drawFrame(lastFrame)
+            /**
+             * Expanded zone.
+             */
+            if (isScrollingDown || self.progress >= ENTER_THRESHOLD) {
+              lockToLastFrame()
 
-            if (!isExpandedRef.current) {
-              isExpandedRef.current = true
-              tl.play(0)
+              if (!isExpandedRef.current) {
+                isExpandedRef.current = true
+                tl.play(0)
+              }
             }
           },
+
           onRefreshInit: () => {
             ensureMetrics()
             buildTransitionTimeline()
           },
+
           onRefresh: (self) => {
             ensureMetrics()
 
             if (isExpandedRef.current) {
-              frameState.targetProgress = ENTER_THRESHOLD
-              frameState.currentProgress = ENTER_THRESHOLD
-              frameState.targetFrame = lastFrame
-              frameState.renderedFrame = lastFrame
-              drawFrame(lastFrame)
+              lockToLastFrame()
               transitionTlRef.current?.progress(1)
             } else {
               setCanvasToStart()
+
               frameState.targetProgress = self.progress
+              frameState.currentProgress = self.progress
+
+              updateTargetsFromProgress(self.progress)
+
+              frameState.renderedFrame = frameState.targetFrame
+
+              forceDrawFrame(frameState.renderedFrame)
             }
           },
         })
 
-        const onResize = () => {
-          ensureMetrics()
-          buildTransitionTimeline()
+        let resizeRaf = 0
 
-          if (isExpandedRef.current) {
-            frameState.targetProgress = ENTER_THRESHOLD
-            frameState.currentProgress = ENTER_THRESHOLD
-            frameState.targetFrame = lastFrame
-            frameState.renderedFrame = lastFrame
-            drawFrame(lastFrame)
-            transitionTlRef.current?.progress(1)
-          } else {
-            setCanvasToStart()
-            frameState.targetProgress = st.progress
-          }
+        const onResize = () => {
+          if (resizeRaf) cancelAnimationFrame(resizeRaf)
+
+          resizeRaf = requestAnimationFrame(() => {
+            ensureMetrics()
+            buildTransitionTimeline()
+
+            if (isExpandedRef.current) {
+              lockToLastFrame()
+              transitionTlRef.current?.progress(1)
+            } else {
+              setCanvasToStart()
+
+              frameState.targetProgress = st.progress
+              frameState.currentProgress = st.progress
+
+              updateTargetsFromProgress(st.progress)
+
+              frameState.renderedFrame = frameState.targetFrame
+
+              forceDrawFrame(frameState.renderedFrame)
+            }
+          })
         }
 
-        window.addEventListener('resize', onResize)
+        window.addEventListener('resize', onResize, { passive: true })
 
         requestAnimationFrame(() => {
           ensureMetrics()
           buildTransitionTimeline()
-
-          if (isExpandedRef.current) {
-            frameState.targetProgress = ENTER_THRESHOLD
-            frameState.currentProgress = ENTER_THRESHOLD
-            frameState.targetFrame = lastFrame
-            frameState.renderedFrame = lastFrame
-            drawFrame(lastFrame)
-            transitionTlRef.current?.progress(1)
-          } else {
-            setCanvasToStart()
-            frameState.targetProgress = st.progress
-          }
-
           ScrollTrigger.refresh()
         })
 
         return () => {
           window.removeEventListener('resize', onResize)
-          if (frameState.rafId) window.cancelAnimationFrame(frameState.rafId)
+
+          if (resizeRaf) {
+            cancelAnimationFrame(resizeRaf)
+          }
+
+          stopTick()
           transitionTlRef.current?.kill()
           st.kill()
         }
@@ -517,7 +851,7 @@ const DeviceSizeimgsq = () => {
         mm.revert()
       }
     },
-    { scope: rootRef, dependencies: [drawFrame] }
+    { scope: rootRef, dependencies: [drawFrame, isNearSection] }
   )
 
   return (
@@ -533,7 +867,7 @@ const DeviceSizeimgsq = () => {
         </div>
 
         <div className="contents lg:relative lg:order-2 lg:grid lg:grid-cols-[350px_1fr] lg:items-center xl:grid-cols-[428px_1fr] xl:gap-20">
-          <div className='relative z-999' ref={contentWrapRef}>
+          <div className="relative z-999" ref={contentWrapRef}>
             <BlurSlideReveal
               ref={blurRevealRef}
               mode="controlled"
@@ -558,6 +892,7 @@ const DeviceSizeimgsq = () => {
                     <h3 className="text-size-primary mb-[11px] text-[36px] leading-[128%] font-normal tracking-[-2%]">
                       8
                     </h3>
+
                     <p className="font-sf-pro text-[18px] leading-[140%] tracking-[-0.5px] text-white">
                       Lorem ipsum in nunc pulvinar pellentesque vel semper aenean sed id pharetra ultrices felis lectus
                       eget felis feugiat nibh vestibulum mi at diam dolor
@@ -577,6 +912,7 @@ const DeviceSizeimgsq = () => {
                     <h3 className="text-size-primary mb-[11px] text-[64px] leading-[128%] font-normal tracking-[-2%]">
                       32
                     </h3>
+
                     <p className="font-sf-pro text-[18px] leading-[140%] tracking-[-0.5px] text-white">
                       Lorem ipsum in nunc pulvinar pellentesque vel semper aenean sed id pharetra ultrices felis lectus
                       eget felis feugiat nibh vestibulum mi at diam dolor
@@ -600,10 +936,10 @@ const DeviceSizeimgsq = () => {
 
         <div
           ref={canvasWrapRef}
-          className="pointer-events-none absolute [transform:translateZ(0)] overflow-hidden rounded-sm will-change-transform"
+          className="pointer-events-none absolute [transform:translate3d(0,0,0)] overflow-hidden rounded-sm will-change-transform"
           aria-hidden
         >
-          <canvas ref={canvasRef} className="block h-full w-full [transform:translateZ(0)]" />
+          <canvas ref={canvasRef} className="block h-full w-full [transform:translate3d(0,0,0)]" />
         </div>
       </div>
     </section>

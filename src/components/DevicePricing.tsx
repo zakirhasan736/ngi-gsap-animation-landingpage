@@ -13,13 +13,11 @@ const DevicePricing = () => {
 
   const sectionRef = useRef<HTMLElement>(null)
 
-  // left circle animation
   const outerCircleRef = useRef<HTMLDivElement>(null)
   const otherTextRef = useRef<HTMLParagraphElement>(null)
   const ngiCircleRef = useRef<HTMLDivElement>(null)
   const ngiTextRef = useRef<HTMLSpanElement>(null)
 
-  // right cards
   const otherCardRef = useRef<HTMLDivElement>(null)
   const ngiCardRef = useRef<HTMLDivElement>(null)
   const cardsStackRef = useRef<HTMLDivElement>(null)
@@ -43,15 +41,15 @@ const DevicePricing = () => {
 
       const setup = (isMobile: boolean) => {
         const OUTER_FINAL = isMobile ? 280 : 576
-        const OUTER_START = isMobile ? 44 : 72
-        const OUTER_MID = OUTER_FINAL * 0.74
+        const OUTER_START_SCALE = isMobile ? 44 / OUTER_FINAL : 72 / OUTER_FINAL
+        const OUTER_MID_SCALE = 0.74
 
-        const INNER_START = isMobile ? 3 : 4
-        const INNER_MID = isMobile ? 18 : 26
         const INNER_FINAL = isMobile ? 42 : 72
+        const INNER_START_SCALE = isMobile ? 3 / INNER_FINAL : 4 / INNER_FINAL
+        const INNER_MID_SCALE = isMobile ? 18 / INNER_FINAL : 26 / INNER_FINAL
 
-        const OTHER_FROM_Y = isMobile ? 16 : 22
-        const OTHER_TO_Y = isMobile ? -90 : -215
+        const OTHER_FROM_Y = isMobile ? 14 : 26
+        const OTHER_TO_Y = isMobile ? -86 : -210
 
         const syncStackHeight = () => {
           const maxCardHeight = Math.max(otherCard.offsetHeight, ngiCard.offsetHeight)
@@ -60,78 +58,93 @@ const DevicePricing = () => {
 
         syncStackHeight()
 
-        // LEFT initial
+        gsap.set([outerCircle, ngiCircle, otherText, ngiText, otherCard, ngiCard], {
+          force3D: true,
+          backfaceVisibility: 'hidden',
+          transformStyle: 'preserve-3d',
+        })
+
         gsap.set(outerCircle, {
-          width: OUTER_START,
-          height: OUTER_START,
+          width: OUTER_FINAL,
+          height: OUTER_FINAL,
           borderRadius: '50%',
-          opacity: 0,
+          opacity: 0.35,
+          scale: OUTER_START_SCALE,
+          transformOrigin: '50% 50%',
+          willChange: 'transform,opacity',
         })
 
         gsap.set(otherText, {
           opacity: 0,
           y: OTHER_FROM_Y,
-          scale: 0.3,
-          filter: 'blur(10px)',
+          scale: 0.82,
+          filter: 'blur(8px)',
+          transformOrigin: '50% 50%',
+          willChange: 'transform,opacity,filter',
         })
 
         gsap.set(ngiCircle, {
-          width: INNER_START,
-          height: INNER_START,
+          width: INNER_FINAL,
+          height: INNER_FINAL,
           borderRadius: '50%',
           opacity: 0,
+          scale: INNER_START_SCALE,
+          transformOrigin: '50% 50%',
+          willChange: 'transform,opacity',
         })
 
         gsap.set(ngiText, {
           opacity: 0,
-          scale: 0.3,
-          filter: 'blur(10px)',
+          scale: 0.72,
+          filter: 'blur(8px)',
+          transformOrigin: '50% 50%',
+          willChange: 'transform,opacity,filter',
         })
 
-        // RIGHT initial
         gsap.set(otherCard, {
-          y: 180,
+          y: isMobile ? 90 : 130,
           autoAlpha: 0,
-          scale: 1.02,
+          scale: 0.985,
           zIndex: 20,
+          willChange: 'transform,opacity',
         })
 
         gsap.set(ngiCard, {
-          y: 180,
+          y: isMobile ? 100 : 150,
           autoAlpha: 0,
-          scale: 1.02,
+          scale: 0.985,
           zIndex: 30,
+          willChange: 'transform,opacity',
         })
 
         const tl = gsap.timeline({
+          defaults: {
+            overwrite: 'auto',
+          },
           scrollTrigger: {
             trigger: section,
             start: 'top top',
-            end: () => `+=${Math.round(window.innerHeight * (isMobile ? 3 : 3.3))}`,
-            scrub: isMobile ? 1 : 0.9,
+            end: () => `+=${Math.round(window.innerHeight * (isMobile ? 2.35 : 2.75))}`,
+            scrub: isMobile ? 0.28 : 0.32,
             pin: true,
             anticipatePin: 1,
             invalidateOnRefresh: true,
+            fastScrollEnd: true,
+            onRefresh: syncStackHeight,
           },
         })
 
         /**
-         * 0% -> 50%
-         * Left:
-         * - big dark circle grows
-         * - Other providers becomes centered and visible
-         *
-         * Right:
-         * - first card comes in
+         * Phase 1:
+         * Other providers circle and first card appear quickly.
          */
         tl.to(
           outerCircle,
           {
-            width: OUTER_MID,
-            height: OUTER_MID,
-            duration: 0.5,
+            scale: OUTER_MID_SCALE,
             opacity: 1,
-            ease: 'power2.out',
+            duration: 0.32,
+            ease: 'power3.out',
           },
           0
         )
@@ -143,10 +156,10 @@ const DevicePricing = () => {
             y: 0,
             scale: 1,
             filter: 'blur(0px)',
-            duration: 0.34,
-            ease: 'power2.out',
+            duration: 0.28,
+            ease: 'power3.out',
           },
-          0.14
+          0.04
         )
 
         tl.to(
@@ -155,32 +168,24 @@ const DevicePricing = () => {
             y: 0,
             autoAlpha: 1,
             scale: 1,
-            duration: 0.32,
-            ease: 'power2.out',
+            duration: 0.3,
+            ease: 'power3.out',
           },
-          0.14
+          0.06
         )
 
         /**
-         * 50% -> 100%
-         * Left:
-         * - Other providers goes up but stays visible
-         * - NGI appears in middle
-         * - outer circle reaches full size
-         *
-         * Right:
-         * - first card leaves upward
-         * - second card comes from below
+         * Phase 2:
+         * NGI starts earlier so the circle no longer feels late.
          */
         tl.to(
           outerCircle,
           {
-            width: OUTER_FINAL,
-            height: OUTER_FINAL,
-            duration: 0.45,
+            scale: 1,
+            duration: 0.44,
             ease: 'expo.out',
           },
-          0.56
+          0.34
         )
 
         tl.to(
@@ -190,33 +195,31 @@ const DevicePricing = () => {
             opacity: 1,
             scale: 0.92,
             filter: 'blur(0px)',
-            duration: 0.45,
-            ease: 'power2.inOut',
+            duration: 0.36,
+            ease: 'power3.inOut',
           },
-          0.5
+          0.34
         )
 
         tl.to(
           ngiCircle,
           {
             opacity: 1,
-            width: INNER_MID,
-            height: INNER_MID,
-            duration: 0.14,
-            ease: 'power2.out',
+            scale: INNER_MID_SCALE,
+            duration: 0.12,
+            ease: 'power3.out',
           },
-          0.58
+          0.4
         )
 
         tl.to(
           ngiCircle,
           {
-            width: INNER_FINAL,
-            height: INNER_FINAL,
-            duration: 0.32,
+            scale: 1,
+            duration: 0.34,
             ease: 'expo.out',
           },
-          0.68
+          0.48
         )
 
         tl.to(
@@ -225,22 +228,22 @@ const DevicePricing = () => {
             opacity: 1,
             scale: 1,
             filter: 'blur(0px)',
-            duration: 0.22,
-            ease: 'power2.out',
+            duration: 0.2,
+            ease: 'power3.out',
           },
-          0.66
+          0.5
         )
 
         tl.to(
           otherCard,
           {
-            y: -ngiCard.offsetHeight * 1.2,
+            y: () => -ngiCard.offsetHeight * 1.05,
             autoAlpha: 0,
-            scale: 0.98,
+            scale: 0.975,
             duration: 0.28,
-            ease: 'power2.inOut',
+            ease: 'power3.inOut',
           },
-          0.52
+          0.34
         )
 
         tl.to(
@@ -249,21 +252,41 @@ const DevicePricing = () => {
             y: 0,
             autoAlpha: 1,
             scale: 1,
-            duration: 0.34,
-            ease: 'power2.out',
+            duration: 0.36,
+            ease: 'power3.out',
           },
-          0.62
+          0.46
         )
 
+        tl.to(
+          [outerCircle, ngiCircle, otherText, ngiText, otherCard, ngiCard],
+          {
+            willChange: 'auto',
+            duration: 0.01,
+          },
+          0.98
+        )
+
+        let resizeRaf = 0
+
         const handleResize = () => {
-          syncStackHeight()
-          ScrollTrigger.refresh()
+          if (resizeRaf) cancelAnimationFrame(resizeRaf)
+
+          resizeRaf = requestAnimationFrame(() => {
+            syncStackHeight()
+            ScrollTrigger.refresh()
+          })
         }
 
-        window.addEventListener('resize', handleResize)
+        window.addEventListener('resize', handleResize, { passive: true })
 
         return () => {
           window.removeEventListener('resize', handleResize)
+
+          if (resizeRaf) {
+            cancelAnimationFrame(resizeRaf)
+          }
+
           tl.scrollTrigger?.kill()
           tl.kill()
         }
@@ -272,7 +295,9 @@ const DevicePricing = () => {
       mm.add('(max-width: 990px)', () => setup(true))
       mm.add('(min-width: 991px)', () => setup(false))
 
-      return () => mm.revert()
+      return () => {
+        mm.revert()
+      }
     },
     { scope: sectionRef }
   )
@@ -283,24 +308,23 @@ const DevicePricing = () => {
       className="wrapper relative z-20 flex items-center justify-center pb-40 sm:min-h-svh sm:pb-20 lg:pb-0"
     >
       <div className="grid h-full grid-cols-1 gap-[50px] sm:pt-20 lg:grid-cols-2 xl:gap-[100px]">
-        {/* left circle animation */}
-        <div className="flex my-auto h-[300px] w-[300px] items-center justify-center sm:h-[400px] sm:w-[400px] xl:h-[575px] xl:w-[575px]">
-          <div className="relative flex h-full w-full items-center justify-center">
+        <div className="my-auto flex h-[300px] w-[300px] items-center justify-center sm:h-[400px] sm:w-[400px] xl:h-[575px] xl:w-[575px]">
+          <div className="relative flex h-full w-full items-center justify-center contain-layout contain-paint">
             <div
               ref={outerCircleRef}
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.08] bg-white/[0.09]"
+              className="absolute top-1/2 left-1/2 [transform:translate3d(-50%,-50%,0)] rounded-full border border-white/[0.08] bg-white/[0.09]"
             />
 
             <p
               ref={otherTextRef}
-              className="font-inter pointer-events-none absolute top-1/2 left-1/2 z-20 -translate-x-1/2 -translate-y-1/2 text-center text-[14px] font-extralight tracking-[-0.02em] whitespace-nowrap text-white/88 opacity-95 sm:text-[18px] xl:text-[28px]"
+              className="font-inter pointer-events-none absolute top-1/2 left-1/2 z-20 [transform:translate3d(-50%,-50%,0)] text-center text-[14px] font-extralight tracking-[-0.02em] whitespace-nowrap text-white/88 opacity-95 sm:text-[18px] xl:text-[28px]"
             >
               Other providers
             </p>
 
             <div
               ref={ngiCircleRef}
-              className="absolute top-1/2 left-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#3E8EE8] shadow-[0_0_28px_rgba(62,142,232,0.16)]"
+              className="absolute top-1/2 left-1/2 z-30 flex [transform:translate3d(-50%,-50%,0)] items-center justify-center rounded-full bg-[#3E8EE8] shadow-[0_0_28px_rgba(62,142,232,0.16)]"
             >
               <span
                 ref={ngiTextRef}
@@ -312,9 +336,10 @@ const DevicePricing = () => {
           </div>
         </div>
 
-        {/* right content */}
-        <div ref={cardsStackRef} className="relative my-auto mx-auto w-full max-w-[535px] overflow-hidden sm:overflow-visible">
-          {/* first card */}
+        <div
+          ref={cardsStackRef}
+          className="relative mx-auto my-auto w-full max-w-[535px] overflow-hidden sm:overflow-visible"
+        >
           <div
             ref={otherCardRef}
             className="absolute inset-x-0 top-0 z-20 w-full overflow-hidden rounded-[20px] border border-white/15 bg-white/8 px-6 py-6 text-white sm:px-10 sm:py-8 md:px-14 md:py-10"
@@ -339,7 +364,6 @@ const DevicePricing = () => {
             </div>
           </div>
 
-          {/* second card */}
           <div
             ref={ngiCardRef}
             className="absolute inset-x-0 top-0 z-10 w-full overflow-hidden rounded-[20px] bg-[linear-gradient(114deg,#1F5A93_0%,#5AA9FF_100%)] px-6 py-8 text-white sm:px-10 sm:py-10 md:px-14 md:py-12"

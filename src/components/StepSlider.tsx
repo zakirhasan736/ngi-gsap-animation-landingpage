@@ -47,7 +47,7 @@ export const StepSlider = () => {
                 <div
                   key={`${item.id}-${page}-${motionKey}`}
                   className={cn(
-                    'steps-slider-card relative px-0 py-6 sm:px-4 sm:py-8 sm:odd:pr-6 sm:even:pl-6 md:px-5 md:odd:pr-8 md:even:pl-8 lg:px-4 lg:py-[38px]',
+                    'steps-slider-card relative transform-gpu px-0 py-6 sm:px-4 sm:py-8 sm:odd:pr-6 sm:even:pl-6 md:px-5 md:odd:pr-8 md:even:pl-8 lg:px-4 lg:py-[38px]',
                     isFirst && 'pl-0 sm:pl-0',
                     isLast && 'pr-0 sm:pr-0',
                     index === 0 && 'lg:pl-0',
@@ -58,17 +58,12 @@ export const StepSlider = () => {
                     index % 2 === 0 ? 'steps-slider-card-glide-up' : 'steps-slider-card-glide-down'
                   )}
                 >
-                  {/* mobile: full-width divider between stacked steps (Steps.tsx-style) */}
-                  {!isLast && (
-                    <span className="bg-step-border absolute bottom-0 left-0 h-[0.5px] w-full sm:hidden"></span>
-                  )}
+                  {!isLast && <span className="bg-step-border absolute bottom-0 left-0 h-[0.5px] w-full sm:hidden" />}
 
-                  {/* sm–md: horizontal between rows in 2-column grid */}
                   {showSmRowDivider && (
-                    <span className="bg-step-border absolute bottom-0 left-0 hidden h-[0.5px] w-full sm:block lg:hidden"></span>
+                    <span className="bg-step-border absolute bottom-0 left-0 hidden h-[0.5px] w-full sm:block lg:hidden" />
                   )}
 
-                  {/* sm–md: vertical between columns (like Steps.tsx tablet) */}
                   {index % 2 === 1 && !isLast && (
                     <>
                       <span className="bg-step-border absolute top-0 left-0 hidden h-[36px] w-[0.5px] sm:block lg:hidden" />
@@ -76,7 +71,6 @@ export const StepSlider = () => {
                     </>
                   )}
 
-                  {/* lg: vertical segments between 4 columns */}
                   {!isFirst && (
                     <>
                       <span className="bg-step-border absolute top-0 left-0 hidden h-[36px] w-[0.5px] lg:block lg:h-[48px]" />
@@ -91,38 +85,22 @@ export const StepSlider = () => {
                     </>
                   )}
 
-                  <Copy type="lines" start="top 92%" delay={index < STEPS_PER_PAGE ? index * 0.07 : 0} animateOnScroll>
+                  <Copy type="lines" start="top 92%" delay={index * 0.05} animateOnScroll>
                     <p className="text-step-title mb-4 text-[11px] leading-[140%] font-semibold tracking-[-0.32px] italic sm:mb-5 sm:text-[12px]">
                       {item.step}
                     </p>
                   </Copy>
 
-                  <BlurSlideReveal
-                    start="85% 94%"
-                    scrub={0.35}
-                    y={26}
-                    blurPx={4}
-                    duration={0.65}
-                    ease="power3.out"
-                    stagger={0.08}
-                  >
-                    <h4 className="mb-2 text-[18px] leading-[140%] font-normal tracking-[-0.43px] text-white sm:text-[19px] lg:mb-2.5 lg:text-[20px]">
-                      {item.title}
-                    </h4>
-                  </BlurSlideReveal>
+                  <BlurSlideReveal start="top 90%" y={34} blurPx={5} duration={0.58} ease="power3.out" stagger={0.04}>
+                    <div className="transform-gpu will-change-[transform,opacity,filter]">
+                      <h4 className="mb-2 text-[18px] leading-[140%] font-normal tracking-[-0.43px] text-white sm:text-[19px] lg:mb-2.5 lg:text-[20px]">
+                        {item.title}
+                      </h4>
 
-                  <BlurSlideReveal
-                    start="85% 96%"
-                    scrub={0.35}
-                    y={22}
-                    blurPx={3}
-                    duration={0.6}
-                    ease="power3.out"
-                    stagger={0.08}
-                  >
-                    <p className="text-step-description text-[13px] leading-[140%] font-normal tracking-[-0.3px] sm:text-[13px] lg:tracking-[-0.5px]">
-                      {item.description}
-                    </p>
+                      <p className="text-step-description text-[13px] leading-[140%] font-normal tracking-[-0.3px] sm:text-[13px] lg:tracking-[-0.5px]">
+                        {item.description}
+                      </p>
+                    </div>
                   </BlurSlideReveal>
                 </div>
               )
@@ -144,7 +122,7 @@ export const StepSlider = () => {
             <button
               type="button"
               onClick={handleNext}
-              className="bg-size-primary flex h-[44px] w-[44px] items-center justify-center rounded-full p-2 sm:h-[62px] sm:w-[62px] lg:h-[66px] lg:w-[66px] lg:p-0 xl:h-[70px] xl:w-[70px]"
+              className="bg-size-primary flex h-[44px] w-[44px] items-center justify-center rounded-full p-2 transition-transform duration-300 ease-out hover:scale-105 active:scale-95 sm:h-[62px] sm:w-[62px] lg:h-[66px] lg:w-[66px] lg:p-0 xl:h-[70px] xl:w-[70px]"
               aria-label="Show next steps"
             >
               <ArrowRight className="h-full w-full" />

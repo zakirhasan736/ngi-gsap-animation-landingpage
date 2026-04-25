@@ -6,19 +6,33 @@ import { buildNumberedFrameUrls } from '@/lib/image-sequence'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 gsap.registerPlugin(ScrollTrigger)
 
-const CARTRIDGE_FRAME_COUNT = 125
+const CARTRIDGE_FRAME_COUNT = 84
 
 const CARTRIDGE_FRAMES = buildNumberedFrameUrls('/videos/chemical-cartridge-video-img', CARTRIDGE_FRAME_COUNT, {
   prefix: 'ezgif-frame-',
   pad: 3,
-  extension: 'png',
+  extension: 'jpg',
 })
 
+/**
+ * Frame sequence scrolls until ENTER_THRESHOLD.
+ * After that, the move-right + content reveal plays automatically.
+ */
 const ENTER_THRESHOLD = 0.54
+
+/**
+ * Reverse starts almost immediately when user scrolls up.
+ * This removes the 4–5 wheel-scroll "free scroll" feeling.
+ */
+const REVERSE_TRIGGER = 0.235
+
+/**
+ * Once fully below this, the section is definitely back in frame-scrub mode.
+ */
 const EXIT_THRESHOLD = 0.5
 
 const LEFT_BLUR_SEGMENTS = [
@@ -40,16 +54,160 @@ const ChemicalCartridgeimgsq = () => {
 
   const canvasLayoutCssRef = useRef<{ w: number; h: number } | null>(null)
   const transitionTlRef = useRef<gsap.core.Timeline | null>(null)
-  const isExpandedRef = useRef(false)
 
-  const { drawFrame } = useImageSequencePlayer(canvasRef, CARTRIDGE_FRAMES, {
-    windowRadius: 14,
-    maxCache: 90,
-    layoutSizeCssRef: canvasLayoutCssRef,
-  })
+  const isExpandedRef = useRef(false)
+  const isTabHiddenRef = useRef(false)
+  const isSectionActiveRef = useRef(false)
+  const firstFrameDrawnRef = useRef(false)
+
+  const [isNearSection, setIsNearSection] = useState(false)
+
+  /**
+   * Only activate the heavy sequence before user reaches this section.
+   * Frame 0 still loads instantly.
+   */
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsNearSection(true)
+          observer.disconnect()
+        }
+      },
+      {
+        root: null,
+        rootMargin: '2200px 0px 2200px 0px',
+        threshold: 0.01,
+      }
+    )
+
+    observer.observe(root)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
+  /**
+   * Pause work when tab is hidden.
+   */
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      isTabHiddenRef.current = document.hidden
+
+      if (!document.hidden) {
+        requestAnimationFrame(() => {
+          ScrollTrigger.refresh()
+        })
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [])
+
+  const playerOptions = useMemo(
+    () => ({
+      windowRadius: isNearSection ? 12 : 1,
+      maxCache: isNearSection ? 42 : 3,
+      preloadAll: false,
+      preloadConcurrency: isNearSection ? 3 : 1,
+      maxDpr: 1.5,
+      layoutSizeCssRef: canvasLayoutCssRef,
+    }),
+    [isNearSection]
+  )
+
+  const { drawFrame } = useImageSequencePlayer(
+    canvasRef,
+    isNearSection ? CARTRIDGE_FRAMES : CARTRIDGE_FRAMES.slice(0, 1),
+    playerOptions
+  )
+
+  /**
+   * Draw frame 0 immediately so canvas never appears blank.
+   */
+  useEffect(() => {
+    const pin = pinRef.current
+    const slot = rightSlotRef.current
+    const wrap = canvasWrapRef.current
+
+    if (!pin || !slot || !wrap) return
+    if (firstFrameDrawnRef.current) return
+
+    let rafId = 0
+    let tries = 0
+
+    const drawInitialFrame = () => {
+      tries += 1
+
+      const pr = pin.getBoundingClientRect()
+      const sr = slot.getBoundingClientRect()
+
+      if (pr.width < 1 || pr.height < 1 || sr.width < 1 || sr.height < 1) {
+        if (tries < 60) {
+          rafId = requestAnimationFrame(drawInitialFrame)
+        }
+
+        return
+      }
+
+      const isMobile = window.innerWidth < 1024
+
+      const slotW = sr.width
+      const slotH = sr.height
+
+      const startScaleFactor = isMobile ? 0.92 : 0.52
+      const startW = Math.min(pr.width * startScaleFactor, 1408)
+      const startH = startW * (slotH / Math.max(slotW, 1))
+      const startLeft = (pr.width - startW) / 2
+      const startTop = (pr.height - startH) / 2
+
+      canvasLayoutCssRef.current = {
+        w: Math.max(startW, slotW),
+        h: Math.max(startH, slotH),
+      }
+
+      gsap.set(wrap, {
+        position: 'absolute',
+        left: startLeft,
+        top: startTop,
+        width: startW,
+        height: startH,
+        x: 0,
+        y: 0,
+        scaleX: 1,
+        scaleY: 1,
+        rotate: 0,
+        zIndex: 30,
+        opacity: 1,
+        force3D: true,
+        willChange: 'transform',
+        backfaceVisibility: 'hidden',
+        transformOrigin: '50% 50%',
+      })
+
+      drawFrame(0)
+      firstFrameDrawnRef.current = true
+    }
+
+    rafId = requestAnimationFrame(drawInitialFrame)
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId)
+    }
+  }, [drawFrame])
 
   useGSAP(
     () => {
+      if (!isNearSection) return
+
       const root = rootRef.current
       const pin = pinRef.current
       const slot = rightSlotRef.current
@@ -71,7 +229,7 @@ const ChemicalCartridgeimgsq = () => {
           scaleX: 1,
           scaleY: 1,
           rotate: 0,
-          filter: 'blur(0px)',
+          filter: 'none',
           transformOrigin: '50% 50%',
           transformPerspective: 1000,
           force3D: true,
@@ -88,8 +246,8 @@ const ChemicalCartridgeimgsq = () => {
 
         gsap.set(title, {
           opacity: 0,
-          y: 36,
-          filter: 'blur(14px)',
+          y: 34,
+          filter: 'blur(10px)',
           willChange: 'transform,opacity,filter',
           force3D: true,
           backfaceVisibility: 'hidden',
@@ -97,8 +255,8 @@ const ChemicalCartridgeimgsq = () => {
 
         gsap.set(body, {
           opacity: 0,
-          y: 54,
-          filter: 'blur(16px)',
+          y: 44,
+          filter: 'blur(10px)',
           willChange: 'transform,opacity,filter',
           force3D: true,
           backfaceVisibility: 'hidden',
@@ -124,9 +282,6 @@ const ChemicalCartridgeimgsq = () => {
         const startLeft = (pr.width - startW) / 2
         const startTop = (pr.height - startH) / 2
 
-        const maxCssW = Math.max(startW, slotW)
-        const maxCssH = Math.max(startH, slotH)
-
         return {
           slotLeft,
           slotTop,
@@ -136,13 +291,14 @@ const ChemicalCartridgeimgsq = () => {
           startH,
           startLeft,
           startTop,
-          maxCssW,
-          maxCssH,
+          maxCssW: Math.max(startW, slotW),
+          maxCssH: Math.max(startH, slotH),
         }
       }
 
       const setupVariant = (isMobile: boolean) => {
         setBaseStates()
+
         isExpandedRef.current = false
         transitionTlRef.current?.kill()
         transitionTlRef.current = null
@@ -159,9 +315,9 @@ const ChemicalCartridgeimgsq = () => {
           ticking: false,
         }
 
-        const STEP_SIZE = isMobile ? 2 : 1
-        const PROGRESS_LERP = isMobile ? 0.12 : 0.095
-        const FRAME_LERP = isMobile ? 0.2 : 0.16
+        const STEP_SIZE = isMobile ? 3 : 1
+        const PROGRESS_LERP = isMobile ? 0.2 : 0.14
+        const FRAME_LERP = isMobile ? 0.32 : 0.22
 
         const ensureMetrics = () => {
           metricsRef.current = buildMetrics(isMobile)
@@ -174,13 +330,6 @@ const ChemicalCartridgeimgsq = () => {
           }
 
           return m
-        }
-
-        const drawIfNeeded = (frame: number) => {
-          const clamped = Math.max(0, Math.min(lastFrame, Math.round(frame)))
-          if (clamped === frameState.lastDrawnFrame) return
-          frameState.lastDrawnFrame = clamped
-          drawFrame(clamped)
         }
 
         const setCanvasToStart = () => {
@@ -199,6 +348,25 @@ const ChemicalCartridgeimgsq = () => {
             rotate: 0,
             zIndex: 30,
           })
+        }
+
+        const drawIfNeeded = (frame: number) => {
+          if (isTabHiddenRef.current) return
+          if (!isSectionActiveRef.current && frameState.lastDrawnFrame !== -1) return
+
+          const clamped = Math.max(0, Math.min(lastFrame, Math.round(frame)))
+
+          if (clamped === frameState.lastDrawnFrame) return
+
+          frameState.lastDrawnFrame = clamped
+          drawFrame(clamped)
+        }
+
+        const forceDrawFrame = (frame: number) => {
+          const wasActive = isSectionActiveRef.current
+          isSectionActiveRef.current = true
+          drawIfNeeded(frame)
+          isSectionActiveRef.current = wasActive
         }
 
         const buildTransitionTimeline = () => {
@@ -222,7 +390,19 @@ const ChemicalCartridgeimgsq = () => {
             paused: true,
             defaults: { ease: 'power3.out' },
             onUpdate: () => {
-              blurRevealRef.current?.setProgress(tl.progress())
+              if (!isTabHiddenRef.current) {
+                blurRevealRef.current?.setProgress(tl.progress())
+              }
+            },
+            onComplete: () => {
+              gsap.set([title, body, content], { willChange: 'auto' })
+            },
+            onReverseComplete: () => {
+              blurRevealRef.current?.setProgress(0)
+
+              gsap.set([title, body, content], {
+                willChange: 'transform,opacity,filter',
+              })
             },
           })
 
@@ -252,7 +432,7 @@ const ChemicalCartridgeimgsq = () => {
             {
               y: deltaY,
               duration: 0.22,
-              ease: 'back.out(1.06)',
+              ease: 'back.out(1.04)',
               force3D: true,
             },
             0.72
@@ -266,7 +446,7 @@ const ChemicalCartridgeimgsq = () => {
               opacity: 1,
               y: 0,
               filter: 'blur(0px)',
-              duration: 0.72,
+              duration: 0.64,
               ease: 'power3.out',
             },
             0.28
@@ -278,7 +458,7 @@ const ChemicalCartridgeimgsq = () => {
               opacity: 1,
               y: 0,
               filter: 'blur(0px)',
-              duration: 0.84,
+              duration: 0.72,
               ease: 'power3.out',
             },
             0.4
@@ -291,11 +471,13 @@ const ChemicalCartridgeimgsq = () => {
           const normalized = gsap.utils.clamp(0, 1, progress / ENTER_THRESHOLD)
           const eased = gsap.parseEase('power1.inOut')(normalized)
           const rawFrame = eased * lastFrame
+
           frameState.targetFrame = Math.min(lastFrame, Math.round(rawFrame / STEP_SIZE) * STEP_SIZE)
         }
 
         const stopTick = () => {
           frameState.ticking = false
+
           if (frameState.rafId) {
             cancelAnimationFrame(frameState.rafId)
             frameState.rafId = 0
@@ -303,6 +485,11 @@ const ChemicalCartridgeimgsq = () => {
         }
 
         const tickFrames = () => {
+          if (isTabHiddenRef.current || !isSectionActiveRef.current) {
+            stopTick()
+            return
+          }
+
           frameState.currentProgress += (frameState.targetProgress - frameState.currentProgress) * PROGRESS_LERP
 
           if (Math.abs(frameState.targetProgress - frameState.currentProgress) < 0.0005) {
@@ -324,7 +511,7 @@ const ChemicalCartridgeimgsq = () => {
             Math.abs(frameState.targetFrame - frameState.renderedFrame) > 0.12
 
           if (stillMoving) {
-            frameState.rafId = window.requestAnimationFrame(tickFrames)
+            frameState.rafId = requestAnimationFrame(tickFrames)
           } else {
             stopTick()
           }
@@ -332,13 +519,41 @@ const ChemicalCartridgeimgsq = () => {
 
         const startTick = () => {
           if (frameState.ticking) return
+          if (isTabHiddenRef.current) return
+          if (!isSectionActiveRef.current) return
+
           frameState.ticking = true
-          frameState.rafId = window.requestAnimationFrame(tickFrames)
+          frameState.rafId = requestAnimationFrame(tickFrames)
         }
 
         const applyFrameProgress = (progress: number) => {
           frameState.targetProgress = progress
           startTick()
+        }
+
+        const lockToLastFrame = () => {
+          stopTick()
+
+          frameState.targetProgress = ENTER_THRESHOLD
+          frameState.currentProgress = ENTER_THRESHOLD
+          frameState.targetFrame = lastFrame
+          frameState.renderedFrame = lastFrame
+
+          forceDrawFrame(lastFrame)
+        }
+
+        const reverseExpandedTimeline = () => {
+          const tl = transitionTlRef.current
+          if (!tl) return
+
+          isExpandedRef.current = false
+
+          gsap.set([title, body, content], {
+            willChange: 'transform,opacity,filter',
+          })
+
+          lockToLastFrame()
+          tl.reverse()
         }
 
         setCanvasToStart()
@@ -348,30 +563,62 @@ const ChemicalCartridgeimgsq = () => {
         frameState.currentProgress = 0
         frameState.targetFrame = 0
         frameState.renderedFrame = 0
-        drawIfNeeded(0)
 
-        let st: ScrollTrigger
+        forceDrawFrame(0)
 
-        st = ScrollTrigger.create({
+        const st = ScrollTrigger.create({
           trigger: root,
           start: 'top top',
-          end: () => `+=${Math.round(window.innerHeight * (isMobile ? 2.85 : 3.5))}`,
+          end: () => `+=${Math.round(window.innerHeight * (isMobile ? 2.65 : 3.25))}`,
           pin,
           pinSpacing: true,
-          scrub: isMobile ? 0.4 : 0.3,
+          scrub: isMobile ? 0.28 : 0.22,
           anticipatePin: 1,
           fastScrollEnd: true,
           invalidateOnRefresh: true,
+
+          onEnter: () => {
+            isSectionActiveRef.current = true
+          },
+
+          onEnterBack: () => {
+            isSectionActiveRef.current = true
+          },
+
+          onLeave: () => {
+            isSectionActiveRef.current = false
+            stopTick()
+          },
+
+          onLeaveBack: () => {
+            isSectionActiveRef.current = false
+            stopTick()
+          },
+
           onUpdate: (self) => {
+            if (isTabHiddenRef.current) return
+
             const tl = transitionTlRef.current
             if (!tl) return
 
+            /**
+             * Important fix:
+             * When scrolling up, reverse immediately after passing below REVERSE_TRIGGER.
+             * Do not wait until EXIT_THRESHOLD.
+             */
+            if (isExpandedRef.current && self.direction === -1 && self.progress < REVERSE_TRIGGER) {
+              reverseExpandedTimeline()
+              return
+            }
+
+            /**
+             * Normal frame-control zone.
+             */
             if (self.progress < EXIT_THRESHOLD) {
               applyFrameProgress(self.progress)
 
               if (isExpandedRef.current) {
-                isExpandedRef.current = false
-                tl.reverse()
+                reverseExpandedTimeline()
               } else if (tl.progress() > 0 && !tl.isActive()) {
                 tl.progress(0)
               }
@@ -379,69 +626,84 @@ const ChemicalCartridgeimgsq = () => {
               return
             }
 
+            /**
+             * Small buffer zone.
+             * When scrolling down, avoid flicker.
+             * When scrolling up and expanded, reverse already handled above.
+             */
             if (self.progress >= EXIT_THRESHOLD && self.progress < ENTER_THRESHOLD) {
-              if (!isExpandedRef.current) applyFrameProgress(self.progress)
+              if (!isExpandedRef.current) {
+                applyFrameProgress(self.progress)
+              }
+
               return
             }
 
-            frameState.targetProgress = ENTER_THRESHOLD
-            frameState.currentProgress = ENTER_THRESHOLD
-            frameState.targetFrame = lastFrame
-            frameState.renderedFrame = lastFrame
-            drawIfNeeded(lastFrame)
+            /**
+             * Expanded zone.
+             */
+            lockToLastFrame()
 
             if (!isExpandedRef.current) {
               isExpandedRef.current = true
               tl.play(0)
             }
           },
+
           onRefreshInit: () => {
             ensureMetrics()
             buildTransitionTimeline()
           },
+
           onRefresh: (self) => {
             ensureMetrics()
 
             if (isExpandedRef.current) {
-              frameState.targetProgress = ENTER_THRESHOLD
-              frameState.currentProgress = ENTER_THRESHOLD
-              frameState.targetFrame = lastFrame
-              frameState.renderedFrame = lastFrame
-              drawIfNeeded(lastFrame)
+              lockToLastFrame()
               transitionTlRef.current?.progress(1)
             } else {
               setCanvasToStart()
+
               frameState.targetProgress = self.progress
               frameState.currentProgress = self.progress
+
               updateTargetsFromProgress(self.progress)
+
               frameState.renderedFrame = frameState.targetFrame
-              drawIfNeeded(frameState.renderedFrame)
+
+              forceDrawFrame(frameState.renderedFrame)
             }
           },
         })
 
-        const onResize = () => {
-          ensureMetrics()
-          buildTransitionTimeline()
+        let resizeRaf = 0
 
-          if (isExpandedRef.current) {
-            frameState.targetProgress = ENTER_THRESHOLD
-            frameState.currentProgress = ENTER_THRESHOLD
-            frameState.targetFrame = lastFrame
-            frameState.renderedFrame = lastFrame
-            drawIfNeeded(lastFrame)
-            transitionTlRef.current?.progress(1)
-          } else {
-            setCanvasToStart()
-            frameState.targetProgress = st.progress
-            frameState.currentProgress = st.progress
-            updateTargetsFromProgress(st.progress)
-            frameState.renderedFrame = frameState.targetFrame
-            drawIfNeeded(frameState.renderedFrame)
-          }
+        const onResize = () => {
+          if (resizeRaf) cancelAnimationFrame(resizeRaf)
+
+          resizeRaf = requestAnimationFrame(() => {
+            ensureMetrics()
+            buildTransitionTimeline()
+
+            if (isExpandedRef.current) {
+              lockToLastFrame()
+              transitionTlRef.current?.progress(1)
+            } else {
+              setCanvasToStart()
+
+              frameState.targetProgress = st.progress
+              frameState.currentProgress = st.progress
+
+              updateTargetsFromProgress(st.progress)
+
+              frameState.renderedFrame = frameState.targetFrame
+
+              forceDrawFrame(frameState.renderedFrame)
+            }
+          })
         }
 
-        window.addEventListener('resize', onResize)
+        window.addEventListener('resize', onResize, { passive: true })
 
         requestAnimationFrame(() => {
           ensureMetrics()
@@ -451,6 +713,11 @@ const ChemicalCartridgeimgsq = () => {
 
         return () => {
           window.removeEventListener('resize', onResize)
+
+          if (resizeRaf) {
+            cancelAnimationFrame(resizeRaf)
+          }
+
           stopTick()
           transitionTlRef.current?.kill()
           st.kill()
@@ -464,7 +731,7 @@ const ChemicalCartridgeimgsq = () => {
         mm.revert()
       }
     },
-    { scope: rootRef, dependencies: [drawFrame] }
+    { scope: rootRef, dependencies: [drawFrame, isNearSection] }
   )
 
   return (
@@ -490,11 +757,13 @@ const ChemicalCartridgeimgsq = () => {
               <div ref={bodyRef} className="will-change-[transform,opacity,filter]">
                 <div className="flex items-start justify-center gap-3 md:gap-6.5 lg:justify-start">
                   <div className="bg-diamond mt-[12px] hidden h-3 w-3 shrink-0 rotate-45 rounded-[1px] lg:block" />
+
                   <div className="max-w-[600px] space-y-3 text-[16px] leading-[140%] tracking-[-0.5px] text-white sm:text-[20px] lg:max-w-[500px] xl:text-[24px]">
                     <p>
                       Lorem ipsum in nunc pulvinar pellentesque vel semper aenean sed id pharetra ultrices felis lectus
                       eget felis feugiat nibh vestibulum mi at diam dolor commodo neque id purus lectus id urna sed.
                     </p>
+
                     <p>
                       Lorem ipsum in nunc pulvinar pellentesque vel semper aenean sed id pharetra ultrices felis lectus.
                     </p>
@@ -513,10 +782,10 @@ const ChemicalCartridgeimgsq = () => {
 
         <div
           ref={canvasWrapRef}
-          className="pointer-events-none absolute [transform:translateZ(0)] overflow-hidden rounded-sm will-change-transform"
+          className="pointer-events-none absolute [transform:translate3d(0,0,0)] overflow-hidden rounded-sm will-change-transform"
           aria-hidden
         >
-          <canvas ref={canvasRef} className="block h-full w-full [transform:translateZ(0)]" />
+          <canvas ref={canvasRef} className="block h-full w-full [transform:translate3d(0,0,0)]" />
         </div>
       </div>
     </section>
