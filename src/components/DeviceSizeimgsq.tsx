@@ -21,12 +21,6 @@ const SIZE_FRAMES = buildNumberedFrameUrls('/videos/size-video-img', SIZE_FRAME_
 
 const ENTER_THRESHOLD = 0.54
 const EXIT_THRESHOLD = 0.5
-
-/**
- * Important:
- * Reverse starts almost immediately when user scrolls up from the completed pinned area.
- * This removes the 4-5 mouse-wheel dead scroll issue.
- */
 const REVERSE_TRIGGER = 0.535
 
 const LEFT_BLUR_SEGMENTS = [
@@ -70,8 +64,14 @@ const DeviceSizeimgsq = () => {
 
   const blurRevealRef = useRef<BlurSlideRevealHandle>(null)
 
-  const sectionTitleRef = useRef<HTMLHeadingElement>(null)
   const contentWrapRef = useRef<HTMLDivElement>(null)
+ const sectionTitleRef = useRef<HTMLHeadingElement[]>([])
+
+ const setSectionTitleRef = (el: HTMLHeadingElement | null) => {
+   if (!el) return
+   if (sectionTitleRef.current.includes(el)) return
+   sectionTitleRef.current.push(el)
+ }
   const flexTextRef = useRef<HTMLParagraphElement>(null)
   const card8Ref = useRef<HTMLDivElement>(null)
   const card32Ref = useRef<HTMLDivElement>(null)
@@ -183,12 +183,9 @@ const DeviceSizeimgsq = () => {
       const startLeft = (pr.width - startW) / 2
       const startTop = (pr.height - startH) / 2
 
-      const maxCssW = Math.max(startW, slotW)
-      const maxCssH = Math.max(startH, slotH)
-
       canvasLayoutCssRef.current = {
-        w: maxCssW,
-        h: maxCssH,
+        w: Math.max(startW, slotW),
+        h: Math.max(startH, slotH),
       }
 
       gsap.set(wrap, {
@@ -230,13 +227,13 @@ const DeviceSizeimgsq = () => {
       const pin = pinRef.current
       const slot = rightSlotRef.current
       const wrap = canvasWrapRef.current
-      const sectionTitle = sectionTitleRef.current
       const contentWrap = contentWrapRef.current
+      const sectionTitles = sectionTitleRef.current
       const flexText = flexTextRef.current
       const card8 = card8Ref.current
       const card32 = card32Ref.current
 
-      if (!root || !pin || !slot || !wrap || !sectionTitle || !contentWrap || !flexText || !card8 || !card32) {
+      if (!root || !pin || !slot || !wrap || !contentWrap || !sectionTitles.length || !flexText || !card8 || !card32) {
         return
       }
 
@@ -259,25 +256,26 @@ const DeviceSizeimgsq = () => {
           backfaceVisibility: 'hidden',
         })
 
-        gsap.set(sectionTitle, {
+        gsap.set(contentWrap, {
           opacity: 0,
-          y: 32,
-          filter: 'blur(10px)',
+          y: 26,
+          force3D: true,
+          backfaceVisibility: 'hidden',
+          willChange: 'transform,opacity',
+        })
+
+        gsap.set(sectionTitles, {
+          autoAlpha: 0,
+          y: 44,
+          filter: 'blur(12px)',
           force3D: true,
           backfaceVisibility: 'hidden',
           willChange: 'transform,opacity,filter',
         })
 
-        gsap.set(contentWrap, {
-          opacity: 0,
-          force3D: true,
-          backfaceVisibility: 'hidden',
-          willChange: 'opacity,transform',
-        })
-
         gsap.set(flexText, {
           opacity: 0,
-          y: 30,
+          y: 36,
           filter: 'blur(10px)',
           willChange: 'transform,opacity,filter',
           force3D: true,
@@ -286,7 +284,7 @@ const DeviceSizeimgsq = () => {
 
         gsap.set(card8, {
           opacity: 0,
-          y: 34,
+          y: 42,
           filter: 'blur(10px)',
           willChange: 'transform,opacity,filter',
           force3D: true,
@@ -295,7 +293,7 @@ const DeviceSizeimgsq = () => {
 
         gsap.set(card32, {
           opacity: 0,
-          y: 38,
+          y: 48,
           filter: 'blur(12px)',
           willChange: 'transform,opacity,filter',
           force3D: true,
@@ -356,8 +354,8 @@ const DeviceSizeimgsq = () => {
         }
 
         const STEP_SIZE = isMobile ? 4 : 2
-        const PROGRESS_LERP = isMobile ? 0.2 : 0.14
-        const FRAME_LERP = isMobile ? 0.32 : 0.24
+        const PROGRESS_LERP = isMobile ? 0.22 : 0.15
+        const FRAME_LERP = isMobile ? 0.34 : 0.25
 
         const ensureMetrics = () => {
           metricsRef.current = buildMetrics(isMobile)
@@ -436,20 +434,20 @@ const DeviceSizeimgsq = () => {
               }
             },
             onStart: () => {
-              gsap.set([sectionTitle, contentWrap, flexText, card8, card32], {
+              gsap.set([contentWrap, ...sectionTitles, flexText, card8, card32], {
                 willChange: 'transform,opacity,filter',
               })
             },
             onComplete: () => {
-              gsap.set([sectionTitle, contentWrap, flexText, card8, card32], {
+              gsap.set([contentWrap, ...sectionTitles, flexText, card8, card32], {
                 willChange: 'auto',
               })
             },
             onReverseComplete: () => {
               blurRevealRef.current?.setProgress(0)
 
-              gsap.set([sectionTitle, contentWrap, flexText, card8, card32], {
-                willChange: 'transform,opacity,filter',
+              gsap.set([contentWrap, ...sectionTitles, flexText, card8, card32], {
+                willChange: 'auto',
               })
             },
           })
@@ -490,24 +488,27 @@ const DeviceSizeimgsq = () => {
           )
 
           tl.to(
-            sectionTitle,
+            contentWrap,
             {
               opacity: 1,
               y: 0,
-              filter: 'blur(0px)',
-              duration: 0.64,
+              duration: 0.42,
               ease: 'power3.out',
             },
             0.18
           )
 
           tl.to(
-            contentWrap,
+            sectionTitles,
             {
-              opacity: 1,
-              duration: 0.01,
+              autoAlpha: 1,
+              y: 0,
+              filter: 'blur(0px)',
+              duration: 0.68,
+              ease: 'power3.out',
+              stagger: 0,
             },
-            0.24
+            0.22
           )
 
           tl.to(
@@ -516,10 +517,10 @@ const DeviceSizeimgsq = () => {
               opacity: 1,
               y: 0,
               filter: 'blur(0px)',
-              duration: 0.6,
+              duration: 0.58,
               ease: 'power3.out',
             },
-            0.28
+            0.34
           )
 
           tl.to(
@@ -528,10 +529,10 @@ const DeviceSizeimgsq = () => {
               opacity: 1,
               y: 0,
               filter: 'blur(0px)',
-              duration: 0.68,
+              duration: 0.66,
               ease: 'power3.out',
             },
-            0.38
+            0.44
           )
 
           tl.to(
@@ -540,10 +541,10 @@ const DeviceSizeimgsq = () => {
               opacity: 1,
               y: 0,
               filter: 'blur(0px)',
-              duration: 0.74,
+              duration: 0.72,
               ease: 'power3.out',
             },
-            0.48
+            0.54
           )
 
           transitionTlRef.current = tl
@@ -631,7 +632,7 @@ const DeviceSizeimgsq = () => {
 
           isExpandedRef.current = false
 
-          gsap.set([sectionTitle, contentWrap, flexText, card8, card32], {
+          gsap.set([contentWrap, sectionTitles, flexText, card8, card32], {
             willChange: 'transform,opacity,filter',
           })
 
@@ -652,11 +653,6 @@ const DeviceSizeimgsq = () => {
         const st = ScrollTrigger.create({
           trigger: root,
           start: 'top top',
-
-          /**
-           * Slightly shorter than before.
-           * Less pinned dead space after the visual animation finishes.
-           */
           end: () => `+=${Math.round(window.innerHeight * (isMobile ? 2.6 : 3.1))}`,
 
           pin,
@@ -673,10 +669,6 @@ const DeviceSizeimgsq = () => {
           onEnterBack: () => {
             isSectionActiveRef.current = true
 
-            /**
-             * When user reaches this section from below,
-             * keep completed state ready, then reverse as soon as they scroll up.
-             */
             if (transitionTlRef.current && st.progress > ENTER_THRESHOLD) {
               lockToLastFrame()
               transitionTlRef.current.progress(1)
@@ -688,9 +680,6 @@ const DeviceSizeimgsq = () => {
             isSectionActiveRef.current = false
             stopTick()
 
-            /**
-             * Finish cleanly when scrolling down fast.
-             */
             if (transitionTlRef.current) {
               lockToLastFrame()
               transitionTlRef.current.progress(1)
@@ -712,28 +701,16 @@ const DeviceSizeimgsq = () => {
             const isScrollingUp = self.direction === -1
             const isScrollingDown = self.direction === 1
 
-            /**
-             * Main fix:
-             * If user scrolls up from the completed/pinned area,
-             * reverse immediately instead of waiting until EXIT_THRESHOLD.
-             */
             if (isScrollingUp && isExpandedRef.current && self.progress < REVERSE_TRIGGER) {
               reverseExpandedTimeline()
               return
             }
 
-            /**
-             * While timeline is reversing, keep the final frame stable until
-             * user reaches the frame-scrub zone.
-             */
             if (isScrollingUp && tl.reversed() && tl.isActive() && self.progress > EXIT_THRESHOLD) {
               lockToLastFrame()
               return
             }
 
-            /**
-             * Normal frame sequence zone.
-             */
             if (self.progress < EXIT_THRESHOLD) {
               applyFrameProgress(self.progress)
 
@@ -746,9 +723,6 @@ const DeviceSizeimgsq = () => {
               return
             }
 
-            /**
-             * Small buffer between frame sequence and expanded state.
-             */
             if (self.progress >= EXIT_THRESHOLD && self.progress < ENTER_THRESHOLD) {
               if (!isExpandedRef.current) {
                 applyFrameProgress(self.progress)
@@ -757,9 +731,6 @@ const DeviceSizeimgsq = () => {
               return
             }
 
-            /**
-             * Expanded zone.
-             */
             if (isScrollingDown || self.progress >= ENTER_THRESHOLD) {
               lockToLastFrame()
 
@@ -857,17 +828,25 @@ const DeviceSizeimgsq = () => {
   return (
     <section ref={rootRef} className="relative">
       <div ref={pinRef} className="wrapper relative flex min-h-svh flex-col justify-center overflow-hidden py-10">
-        <div className="relative z-10 order-2 mb-4 sm:mb-6 lg:order-1 lg:mb-0 xl:mb-[43px]">
+        <div className="relative z-10 mb-4 hidden sm:mb-6 lg:mb-0 lg:inline-block xl:mb-[43px]">
           <h2
-            ref={sectionTitleRef}
+            ref={setSectionTitleRef}
             className="font-sf-pro text-[28px] leading-[128%] font-medium tracking-[-2%] text-white sm:text-[48px] xl:text-[72px]"
           >
             Because size matters
           </h2>
         </div>
 
-        <div className="contents lg:relative lg:order-2 lg:grid lg:grid-cols-[350px_1fr] lg:items-center xl:grid-cols-[428px_1fr] xl:gap-20">
-          <div className="relative z-999" ref={contentWrapRef}>
+        <div className="contents lg:relative lg:grid lg:grid-cols-[350px_1fr] lg:items-center xl:grid-cols-[428px_1fr] xl:gap-20">
+          <div className="relative z-999 order-2 lg:order-1" ref={contentWrapRef}>
+            <div className="relative z-10 mb-4 inline-block sm:mb-6 lg:mb-0 lg:hidden xl:mb-[43px]">
+              <h2
+                ref={setSectionTitleRef}
+                className="font-sf-pro text-[36px] leading-[128%] font-medium tracking-[-2%] text-white sm:text-[48px] xl:text-[72px]"
+              >
+                Because size matters
+              </h2>
+            </div>
             <BlurSlideReveal
               ref={blurRevealRef}
               mode="controlled"
@@ -888,12 +867,12 @@ const DeviceSizeimgsq = () => {
                 className="relative rounded-[8px] bg-[linear-gradient(112.82deg,#3C98EE_-5.87%,#0D3459_7.76%)] p-px will-change-[transform,opacity,filter]"
               >
                 <div className="h-full rounded-[8px] bg-black p-px">
-                  <div className="h-full bg-white/8 p-6">
-                    <h3 className="text-size-primary mb-[11px] text-[36px] leading-[128%] font-normal tracking-[-2%]">
+                  <div className="h-full bg-white/8 p-5 lg:p-6">
+                    <h3 className="text-size-primary mb-2 text-[26px] leading-[128%] font-normal tracking-[-2%] lg:mb-[11px] lg:text-[36px]">
                       8
                     </h3>
 
-                    <p className="font-sf-pro text-[18px] leading-[140%] tracking-[-0.5px] text-white">
+                    <p className="font-sf-pro text-[16px] leading-[120%] tracking-[-0.5px] text-white lg:text-[18px] lg:leading-[140%]">
                       Lorem ipsum in nunc pulvinar pellentesque vel semper aenean sed id pharetra ultrices felis lectus
                       eget felis feugiat nibh vestibulum mi at diam dolor
                     </p>
@@ -908,12 +887,12 @@ const DeviceSizeimgsq = () => {
                 className="relative rounded-[8px] bg-[linear-gradient(112.82deg,#3C98EE_-5.87%,#0D3459_7.76%)] p-px will-change-[transform,opacity,filter]"
               >
                 <div className="h-full rounded-[8px] bg-black p-px">
-                  <div className="h-full bg-white/8 p-6">
-                    <h3 className="text-size-primary mb-[11px] text-[64px] leading-[128%] font-normal tracking-[-2%]">
+                  <div className="h-full bg-white/8 p-5 lg:p-6">
+                    <h3 className="text-size-primary mb-2 text-[32px] leading-[128%] font-normal tracking-[-2%] lg:mb-[11px] lg:text-[64px]">
                       32
                     </h3>
 
-                    <p className="font-sf-pro text-[18px] leading-[140%] tracking-[-0.5px] text-white">
+                    <p className="font-sf-pro text-[16px] leading-[120%] tracking-[-0.5px] text-white lg:text-[18px] lg:leading-[140%]">
                       Lorem ipsum in nunc pulvinar pellentesque vel semper aenean sed id pharetra ultrices felis lectus
                       eget felis feugiat nibh vestibulum mi at diam dolor
                     </p>

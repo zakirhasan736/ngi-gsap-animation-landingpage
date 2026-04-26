@@ -18,12 +18,12 @@ declare global {
 }
 
 
-const isMobile = typeof window !== 'undefined' && window.innerWidth < 991
+// const isMobile = typeof window !== 'undefined' && window.innerWidth < 991
 
-const videoSrc = isMobile ? '/videos/intro-video-1-mobo.mp4' : '/videos/intro-video.webm'
+// const videoSrc = isMobile ? '/videos/intro-video-1-mobo.mp4' : '/videos/intro-video.webm'
 const HERO_IMAGE_SRC = '/images/hero-img.png'
-const HERO_VIDEO_IMAGE_CROSSFADE_DURATION = 0.55
-const HERO_VIDEO_IMAGE_CROSSFADE_EASE = 'power2.inOut'
+// const HERO_VIDEO_IMAGE_CROSSFADE_DURATION = 0.55
+// const HERO_VIDEO_IMAGE_CROSSFADE_EASE = 'power2.inOut'
 const TAG_START = 0.1
 const TAG_END = 0.42
 const TITLE_START = 0.48

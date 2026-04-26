@@ -15,7 +15,7 @@ const CARTRIDGE_FRAME_COUNT = 84
 const CARTRIDGE_FRAMES = buildNumberedFrameUrls('/videos/chemical-cartridge-video-img', CARTRIDGE_FRAME_COUNT, {
   prefix: 'ezgif-frame-',
   pad: 3,
-  extension: 'jpg',
+  extension: 'webp',
 })
 
 /**
