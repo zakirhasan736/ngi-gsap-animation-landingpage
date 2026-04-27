@@ -7,7 +7,7 @@ const CTA = () => {
         {/* right image */}
         <div className="pointer-events-none absolute top-[90px] right-[-250px] sm:top-[-50px] sm:right-[-300px] md:top-[-60px] md:right-[-350px] lg:top-[-80px] lg:right-[-450px] xl:top-[-120px] xl:right-[-650px]">
           <div className="relative h-[400px] w-[600px] sm:h-[600px] sm:w-[800px] md:h-[700px] md:w-[900px] xl:h-[953px] xl:w-[1400px]">
-            <img src="/images/cta-img.png" alt="cta-bg" className="h-full w-full object-contain object-top-right" />
+            <img src="/images/cta-img.webp" alt="cta-bg" className="h-full w-full object-contain object-top-right" />
           </div>
         </div>
 

@@ -16,7 +16,7 @@ const SIZE_FRAME_COUNT = 121
 const SIZE_FRAMES = buildNumberedFrameUrls('/videos/size-video-img', SIZE_FRAME_COUNT, {
   prefix: 'ezgif-frame-',
   pad: 3,
-  extension: 'jpg',
+  extension: 'webp',
 })
 
 const ENTER_THRESHOLD = 0.54
@@ -265,6 +265,7 @@ const DeviceSizeimgsq = () => {
         })
 
         gsap.set(sectionTitles, {
+          opacity: 0,
           autoAlpha: 0,
           y: 44,
           filter: 'blur(12px)',
@@ -502,6 +503,7 @@ const DeviceSizeimgsq = () => {
             sectionTitles,
             {
               autoAlpha: 1,
+              opacity: 1,
               y: 0,
               filter: 'blur(0px)',
               duration: 0.68,
