@@ -354,7 +354,7 @@ const DeviceSizeimgsq = () => {
           ticking: false,
         }
 
-        const STEP_SIZE = isMobile ? 4 : 2
+        const STEP_SIZE = isMobile ? 25 : 2
         const PROGRESS_LERP = isMobile ? 0.22 : 0.15
         const FRAME_LERP = isMobile ? 0.34 : 0.25
 

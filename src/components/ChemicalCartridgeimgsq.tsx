@@ -315,7 +315,7 @@ const ChemicalCartridgeimgsq = () => {
           ticking: false,
         }
 
-        const STEP_SIZE = isMobile ? 3 : 1
+        const STEP_SIZE = isMobile ? 20 : 1
         const PROGRESS_LERP = isMobile ? 0.2 : 0.14
         const FRAME_LERP = isMobile ? 0.32 : 0.22
 
